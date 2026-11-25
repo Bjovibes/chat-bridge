@@ -4,6 +4,10 @@ build/shots/
 # dependencies
 node_modules/
 
+# packaging output
+build/release/
+build/dist/
+
 # logs
 *.log
 

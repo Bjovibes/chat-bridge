@@ -4,12 +4,36 @@
   "version": "0.2.0",
   "private": true,
   "description": "Chat Bridge: one operator desk for official WhatsApp and Telegram web sessions, with consent blindfolds and an AI sidekick. Drafts never send themselves.",
+  "author": "Bjovibes",
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
-    "smoke": "electron . --smoke --mock"
+    "smoke": "electron . --smoke --mock",
+    "dist": "electron-builder --win nsis"
   },
   "devDependencies": {
-    "electron": "45.4.1"
+    "electron": "45.4.1",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.bjovibes.chatbridge",
+    "productName": "Chat Bridge",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "tools/**/*",
+      "README.md"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "Chat-Bridge-Setup-${version}.${ext}"
+    }
   }
 }

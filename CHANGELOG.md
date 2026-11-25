@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.2.0-beta (2026-11-25)
+- First packaged release: Windows NSIS installer (Chat-Bridge-Setup-0.2.0.exe) on the GitHub Releases page. App icon (bridge arch, three typing dots) wired through the installer and window.
+
 ## Unreleased (2026-11-24)
 - Rebrand: **Chat Bridge** (public name; internally WA Bridge → OneBridge → Chat Bridge). Window title, rail wordmark, About, dialogs, launcher strings, comment headers.
 - Repo hygiene: git init, .gitignore (shots/ never committed, node_modules, logs), MIT LICENSE, public README, this changelog.

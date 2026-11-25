@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <rect width="256" height="256" rx="56" fill="#12140b"/>
+  <rect x="6" y="6" width="244" height="244" rx="52" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="3"/>
+  <!-- suspension arc -->
+  <path d="M64 132 a64 64 0 0 1 128 0" stroke="#F4F5F2" stroke-width="14" stroke-linecap="round"/>
+  <!-- deck -->
+  <line x1="48" y1="154" x2="208" y2="154" stroke="#F4F5F2" stroke-width="14" stroke-linecap="round"/>
+  <!-- pylons -->
+  <line x1="70" y1="161" x2="70" y2="184" stroke="#F4F5F2" stroke-width="11" stroke-linecap="round"/>
+  <line x1="186" y1="161" x2="186" y2="184" stroke="#F4F5F2" stroke-width="11" stroke-linecap="round"/>
+  <!-- the conversation: three typing dots inside the arch -->
+  <circle cx="104" cy="112" r="10" fill="#2DD4BF"/>
+  <circle cx="128" cy="112" r="10" fill="#2DD4BF"/>
+  <circle cx="152" cy="112" r="10" fill="#2DD4BF"/>
+</svg>

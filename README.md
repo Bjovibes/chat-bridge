@@ -21,7 +21,13 @@ These are design laws, not settings. The code is shaped around them.
 7. **Consent is revocable at any moment.** From the owner's own phone. Nothing on this PC can stop that, and nothing here should.
 8. **Consent moves to a portal.** In development: the owner opens a link on their phone and toggles contact-level access themselves. See the PRD.
 
-## Run it
+## Download (no coding needed)
+
+Grab the installer from [Releases](https://github.com/Bjovibes/chat-bridge/releases): download `Chat-Bridge-Setup-0.2.0.exe`, double-click, done. Windows 10/11, installs to your user folder, no admin needed.
+
+The app is unsigned, so Windows SmartScreen will say "Windows protected your PC". Click **More info** → **Run anyway** if you trust it. A signing certificate is future work.
+
+## Run it from source
 
 Windows first, macOS later. In `build/`:
 
