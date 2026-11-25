@@ -1,0 +1,391 @@
+/* Chat Bridge — glass skin, extracted from the v0 music player design (2026-11-20).
+   Layered AFTER shell.css: recolors and refinishes only. Never touches layout
+   (display/grid/flex/position/size) so slot rect math stays intact.
+   System: warm ambient backdrop, translucent surfaces, hairlines with a top
+   light catch, monochrome-warm chrome. The chats are the artwork. */
+
+:root {
+  --g-bg-0: #12140b;
+  --g-bg-1: #171b0c;
+  --g-text: #ffffff;
+  --g-text-2: rgba(255, 255, 255, 0.74);
+  --g-text-3: rgba(255, 255, 255, 0.42);
+  --g-hairline: rgba(255, 255, 255, 0.22);
+  --g-hairline-strong: rgba(255, 255, 255, 0.34);
+  --g-glass: rgba(46, 46, 30, 0.34);
+  --g-glass-soft: rgba(255, 255, 255, 0.07);
+  --g-glass-hover: rgba(255, 255, 255, 0.12);
+  --g-blur: 30px;
+  --g-saturate: 1.5;
+  --g-radius-panel: 26px;
+  --g-radius-pill: 18px;
+  --g-radius-small: 12px;
+  --g-shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+  --g-inner-catch: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  --g-gold: #e8c86a;
+  --g-green: #97d3a8;
+  --g-red: #f0a899;
+}
+
+/* ---------- ambient backdrop (the wallpaper the glass samples) ---------- */
+
+html, body {
+  background:
+    radial-gradient(1100px 760px at 78% -12%, rgba(201, 184, 74, 0.20), transparent 60%),
+    radial-gradient(950px 700px at -8% 108%, rgba(90, 84, 32, 0.42), transparent 55%),
+    radial-gradient(850px 620px at 108% 96%, rgba(138, 122, 42, 0.26), transparent 60%),
+    linear-gradient(160deg, var(--g-bg-1) 0%, var(--g-bg-0) 55%, #0c0e08 100%);
+  background-attachment: fixed;
+  color: var(--g-text);
+}
+
+/* ---------- shell frame ---------- */
+
+.shell { background: transparent; }
+
+.wordmark {
+  color: var(--g-text);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.rail-sub { color: var(--g-text-3); }
+
+/* ---------- rail ---------- */
+
+.rail {
+  background: var(--g-glass);
+  backdrop-filter: blur(var(--g-blur)) saturate(var(--g-saturate));
+  -webkit-backdrop-filter: blur(var(--g-blur)) saturate(var(--g-saturate));
+  border-right: 1px solid var(--g-hairline);
+  box-shadow: var(--g-inner-catch);
+}
+
+/* v2: people first. The people section takes the bulk, accounts shrink under it.
+   T2 seam cut 2026-11-21: layout claims live in people.css/shell.css now. */
+#rail { display: flex; flex-direction: column; min-height: 0; }
+#people-rail { flex: 1 1 auto; min-height: 0; }
+#account-list { flex: 0 0 auto; min-height: 96px; max-height: 24%; overflow-y: auto; }
+
+/* v2: reply-as chips replace the slot name pills (chips live in the strip
+   above each view; the old pills would sit underneath them). */
+.slot .slot-name { display: none !important; }
+
+.account-card {
+  background: var(--g-glass-soft);
+  border: 1px solid var(--g-hairline);
+  border-radius: var(--g-radius-small);
+  color: var(--g-text);
+  box-shadow: var(--g-inner-catch);
+  transition: background 0.15s ease;
+}
+.account-card:hover { background: var(--g-glass-hover); }
+.account-card.is-open, .account-card.is-selected {
+  background: rgba(255, 255, 255, 0.13);
+  border-color: var(--g-hairline-strong);
+}
+.card-name { color: var(--g-text); }
+.card-status { color: var(--g-text-2); }
+.st-linking .status-dot { background: var(--g-gold); }
+.st-linking .status-label { color: var(--g-gold); }
+.st-linked .status-dot { background: #a8e0b8; }
+.st-linked .status-label { color: #a8e0b8; }
+.st-logged-out .status-dot { background: rgba(255, 255, 255, 0.35); }
+.st-logged-out .status-label { color: var(--g-text-2); }
+
+.card-name-input {
+  background: rgba(0, 0, 0, 0.30);
+  border: 1px solid var(--g-hairline);
+  border-radius: 8px;
+  color: var(--g-text);
+}
+
+.unread-badge {
+  background: #ffffff;
+  color: #26261a;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.add-account-btn {
+  background: var(--g-glass-soft);
+  border: 1px dashed var(--g-hairline-strong);
+  border-radius: var(--g-radius-pill);
+  color: var(--g-text);
+  box-shadow: var(--g-inner-catch);
+}
+.add-account-btn:hover { background: var(--g-glass-hover); }
+
+.relink-btn {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--g-hairline);
+  border-radius: 999px;
+  color: var(--g-text);
+}
+
+/* ---------- toolbar ---------- */
+
+.toolbar {
+  background: transparent;
+  border-bottom: 1px solid var(--g-hairline);
+}
+.toolbar-btn {
+  background: var(--g-glass-soft);
+  border: 1px solid var(--g-hairline);
+  border-radius: var(--g-radius-pill);
+  color: var(--g-text);
+  box-shadow: var(--g-inner-catch);
+}
+.toolbar-btn:hover { background: var(--g-glass-hover); }
+
+.layout-switch {
+  background: var(--g-glass);
+  backdrop-filter: blur(20px) saturate(var(--g-saturate));
+  -webkit-backdrop-filter: blur(20px) saturate(var(--g-saturate));
+  border: 1px solid var(--g-hairline);
+  border-radius: var(--g-radius-pill);
+  box-shadow: var(--g-inner-catch);
+}
+.mode-btn { color: var(--g-text-2); }
+.mode-btn:hover { color: var(--g-text); background: var(--g-glass-soft); }
+.mode-btn.active {
+  background: #ffffff;
+  color: #26261a;
+}
+
+/* ---------- slots ---------- */
+
+.slot-area { background: transparent; }
+
+.slot {
+  background: rgba(30, 32, 20, 0.30);
+  border: 1px solid var(--g-hairline);
+  border-radius: var(--g-radius-panel);
+  box-shadow: var(--g-inner-catch), 0 10px 34px rgba(0, 0, 0, 0.22);
+}
+.slot-name {
+  color: var(--g-text);
+  background: rgba(0, 0, 0, 0.30);
+  border: 1px solid var(--g-hairline);
+  border-radius: 999px;
+}
+
+.tabstrip { background: transparent; }
+.tab-chip {
+  background: var(--g-glass-soft);
+  border: 1px solid var(--g-hairline);
+  border-radius: var(--g-radius-pill);
+  color: var(--g-text-2);
+}
+.tab-chip:hover { background: var(--g-glass-hover); color: var(--g-text); }
+.tab-chip.active {
+  background: #ffffff;
+  color: #26261a;
+}
+.tab-chip.active .chip-dot { box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.12); }
+.tab-hint { color: var(--g-text-3); }
+
+.empty-state {
+  background: var(--g-glass);
+  backdrop-filter: blur(var(--g-blur)) saturate(var(--g-saturate));
+  -webkit-backdrop-filter: blur(var(--g-blur)) saturate(var(--g-saturate));
+  border: 1px solid var(--g-hairline);
+  border-radius: var(--g-radius-panel);
+  box-shadow: var(--g-shadow), var(--g-inner-catch);
+  color: var(--g-text);
+}
+.empty-state p { color: var(--g-text-2); }
+
+/* ---------- modals ---------- */
+
+.overlay { background: rgba(8, 9, 5, 0.55); backdrop-filter: blur(6px); }
+
+.modal {
+  background: var(--g-glass);
+  backdrop-filter: blur(var(--g-blur)) saturate(var(--g-saturate));
+  -webkit-backdrop-filter: blur(var(--g-blur)) saturate(var(--g-saturate));
+  border: 1px solid var(--g-hairline-strong);
+  border-radius: var(--g-radius-panel);
+  box-shadow: var(--g-shadow), var(--g-inner-catch);
+  color: var(--g-text);
+}
+.modal h2 { color: var(--g-text); }
+.consent {
+  color: var(--g-gold);
+  background: rgba(232, 200, 106, 0.08);
+  border: 1px solid rgba(232, 200, 106, 0.30);
+  border-radius: var(--g-radius-small);
+}
+.remove-copy { color: var(--g-text-2); }
+.field-label { color: var(--g-text-3); }
+
+.field input, .field select, .ai-panel-instruction textarea,
+.field input[type="text"], .field input[type="password"],
+.field input[type="number"], .field select {
+  background: rgba(0, 0, 0, 0.30);
+  border: 1px solid var(--g-hairline);
+  border-radius: var(--g-radius-small);
+  color: var(--g-text);
+}
+.field input::placeholder, .ai-panel-instruction textarea::placeholder { color: var(--g-text-3); }
+.field input:focus, .field select:focus {
+  border-color: var(--g-hairline-strong);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+}
+.field select option { background: #1c1e12; color: var(--g-text); }
+
+.swatch { border: 2px solid transparent; box-shadow: var(--g-inner-catch); }
+.swatch.selected { border-color: #ffffff; }
+
+.btn-primary {
+  background: #ffffff;
+  color: #26261a;
+  border-radius: var(--g-radius-pill);
+  border: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.30);
+}
+.btn-primary:hover { background: #f5f2e8; }
+.btn-ghost {
+  background: var(--g-glass-soft);
+  border: 1px solid var(--g-hairline);
+  color: var(--g-text);
+  border-radius: var(--g-radius-pill);
+}
+.btn-ghost:hover { background: var(--g-glass-hover); }
+.btn-danger {
+  background: rgba(240, 168, 153, 0.16);
+  border: 1px solid rgba(240, 168, 153, 0.45);
+  color: var(--g-red);
+  border-radius: var(--g-radius-pill);
+}
+.btn-danger:hover { background: rgba(240, 168, 153, 0.26); }
+
+/* ---------- context menu ---------- */
+
+.ctx-menu {
+  background: var(--g-glass);
+  backdrop-filter: blur(24px) saturate(var(--g-saturate));
+  -webkit-backdrop-filter: blur(24px) saturate(var(--g-saturate));
+  border: 1px solid var(--g-hairline-strong);
+  border-radius: var(--g-radius-small);
+  box-shadow: var(--g-shadow), var(--g-inner-catch);
+}
+.ctx-item { color: var(--g-text); border-radius: 8px; }
+.ctx-item:hover { background: var(--g-glass-hover); }
+.ctx-danger { color: var(--g-red); }
+.ctx-label { color: var(--g-text-3); }
+
+/* ---------- settings slide-over ---------- */
+
+.settings {
+  background: var(--g-glass);
+  backdrop-filter: blur(var(--g-blur)) saturate(var(--g-saturate));
+  -webkit-backdrop-filter: blur(var(--g-blur)) saturate(var(--g-saturate));
+  border-left: 1px solid var(--g-hairline-strong);
+  box-shadow: var(--g-shadow), var(--g-inner-catch);
+  color: var(--g-text);
+}
+.settings h2, .settings h3 { color: var(--g-text); }
+.settings section { border-top: 1px solid var(--g-hairline); }
+.about p { color: var(--g-text-2); }
+
+.privacy-hint { color: var(--g-text-3); }
+#privacy-filter {
+  width: 100%;
+  margin: 0 0 8px 0;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.30);
+  border: 1px solid var(--g-hairline);
+  border-radius: var(--g-radius-small);
+  color: var(--g-text);
+}
+#privacy-filter:focus {
+  border-color: var(--g-hairline-strong);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+}
+.privacy-chats {
+  border: 1px solid var(--g-hairline);
+  border-radius: var(--g-radius-small);
+  background: rgba(0, 0, 0, 0.20);
+}
+.chat-row { color: var(--g-text); border-radius: 8px; }
+.chat-row:hover { background: var(--g-glass-hover); }
+.chat-unread { color: var(--g-text-2); }
+.chat-load-note { color: var(--g-text-3); }
+
+.test-result { border-radius: var(--g-radius-small); }
+.test-result.ok { color: var(--g-green); background: rgba(151, 211, 168, 0.10); }
+.test-result.fail { color: var(--g-red); background: rgba(240, 168, 153, 0.10); }
+
+/* ---------- toasts ---------- */
+
+.toasts { background: transparent; }
+.toast {
+  background: var(--g-glass);
+  backdrop-filter: blur(24px) saturate(var(--g-saturate));
+  -webkit-backdrop-filter: blur(24px) saturate(var(--g-saturate));
+  border: 1px solid var(--g-hairline-strong);
+  border-radius: var(--g-radius-pill);
+  box-shadow: var(--g-shadow), var(--g-inner-catch);
+  color: var(--g-text);
+}
+.toast.t-allowed { border-color: rgba(151, 211, 168, 0.5); }
+.toast.t-restricted { border-color: rgba(232, 200, 106, 0.5); color: var(--g-gold); }
+
+/* ---------- boot error ---------- */
+
+.boot-error { background: rgba(8, 9, 5, 0.8); }
+.boot-error-card {
+  background: var(--g-glass);
+  border: 1px solid var(--g-hairline-strong);
+  border-radius: var(--g-radius-panel);
+  box-shadow: var(--g-shadow), var(--g-inner-catch);
+  color: var(--g-text);
+}
+.boot-error-card p { color: var(--g-text-2); }
+
+/* ---------- scrollbars (quiet, dark) ---------- */
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.24); background-clip: content-box; border: 2px solid transparent; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- V14 U3: platform selector in the add-account modal ---------- */
+.plat-sel { display: flex; gap: 8px; }
+.plat-sel-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 10px;
+  border-radius: var(--g-radius-pill);
+  background: var(--g-glass-soft);
+  border: 1px dashed var(--g-hairline-strong);
+  color: var(--g-text-3);
+  cursor: pointer;
+  font: inherit;
+}
+.plat-sel-btn:hover { background: var(--g-glass-hover); }
+.plat-sel-btn.active {
+  border-style: solid;
+  color: var(--g-text);
+  box-shadow: var(--g-inner-catch);
+}
+/* Two classes so this beats the render.css platform-badge width (later sheet,
+   same specificity). 18px fixed: the badge's own 1.07em is tuned for pane
+   headers, not an 18px row inside a modal button. */
+.plat-sel .plat-sel-logo { width: 18px; height: 18px; }
+.plat-sel-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--g-text-3);
+}

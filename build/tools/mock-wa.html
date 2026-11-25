@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<!-- mock-wa.html - Chat Bridge test double of WhatsApp Web.
+     Self-contained, runs from file://, zero network, defines no __wab globals.
+     The inject scripts must work ON this page via executeJavaScript.
+     Structural hooks mirror WhatsApp Web: #side with a real <header> holding
+     the search box as div[data-tab="3"] contenteditable (the v2 open-chat
+     chain's first selector), #pane-side, role="listbox"/role="row",
+     span[dir="auto"] titles, unread badges with aria-label, header title span,
+     .message-in / .message-out bubbles, footer div[contenteditable="true"]. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mock WhatsApp Web</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font: 14px/1.4 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #0b141a; color: #e9edef; overflow: hidden;
+  }
+  #app { display: flex; height: 100vh; }
+
+  /* left pane */
+  #side { width: 340px; min-width: 260px; background: #111b21; border-right: 1px solid #222d34; display: flex; flex-direction: column; }
+  .side-head { padding: 10px 12px; background: #202c33; }
+  .side-head h1 { font-size: 19px; font-weight: 600; color: #e9edef; margin-bottom: 8px; }
+  #search { width: 100%; padding: 8px 12px; border-radius: 8px; border: none; outline: none;
+    background: #2a3942; color: #e9edef; font-size: 14px; min-height: 34px; overflow: hidden;
+    white-space: pre; empty-cells: hide; }
+  #search:empty::before { content: "Search or start a new chat"; color: #8696a0; pointer-events: none; }
+  #pane-side { flex: 1; overflow-y: auto; }
+  #chat-list { outline: none; }
+  .row { display: flex; gap: 12px; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.03); }
+  .row:hover { background: #202c33; }
+  .row.active { background: #2a3942; }
+  .avatar { flex: 0 0 44px; width: 44px; height: 44px; border-radius: 50%; color: #111b21;
+    font-weight: 600; font-size: 15px; display: flex; align-items: center; justify-content: center; }
+  .row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+  .row-top, .row-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .row-title { font-size: 15px; color: #e9edef; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row-time { font-size: 12px; color: #8696a0; flex: 0 0 auto; }
+  .row-snippet { font-size: 13px; color: #8696a0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .badge { flex: 0 0 auto; min-width: 20px; height: 20px; border-radius: 10px; background: #00a884;
+    color: #111b21; font-size: 12px; font-weight: 600; display: flex; align-items: center;
+    justify-content: center; padding: 0 6px; }
+
+  /* right pane */
+  #main { flex: 1; display: flex; flex-direction: column; background: #0b141a; min-width: 0; position: relative; }
+  #conv-header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: #202c33;
+    border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .conv-title { font-size: 16px; font-weight: 500; }
+  .conv-sub { font-size: 12px; color: #8696a0; margin-top: 2px; }
+  #messages { flex: 1; overflow-y: auto; padding: 16px 8%; display: flex; flex-direction: column; gap: 3px; }
+  .divider { align-self: center; margin: 14px 0 10px; background: #182229; color: #8696a0;
+    font-size: 12px; padding: 6px 10px; border-radius: 8px; }
+  .notice { align-self: center; text-align: center; color: #8696a0; font-size: 12px; margin: 10px 24px 14px; }
+  .bubble { max-width: 65%; padding: 7px 10px; border-radius: 8px; font-size: 14px; position: relative; }
+  .bubble .time { display: inline-block; margin-left: 10px; font-size: 11px; color: rgba(233,237,239,0.55); }
+  .message-in { align-self: flex-start; background: #202c33; border-top-left-radius: 2px; }
+  .message-out { align-self: flex-end; background: #005c4b; border-top-right-radius: 2px; }
+
+  /* compose footer */
+  #compose-footer { display: flex; align-items: flex-end; gap: 10px; padding: 10px 16px; background: #202c33; }
+  #compose { flex: 1; min-height: 20px; max-height: 110px; overflow-y: auto; background: #2a3942;
+    border-radius: 8px; padding: 10px 12px; outline: none; color: #e9edef; font-size: 15px;
+    empty-cells: hide; }
+  #compose:empty::before { content: "Type a message"; color: #8696a0; pointer-events: none; }
+  .foot-hint { flex: 0 0 auto; color: #8696a0; font-size: 11px; padding-bottom: 8px; user-select: none; }
+
+  #mock-pill { position: fixed; top: 10px; right: 12px; background: #111b21; color: #00a884;
+    border: 1px solid #00a884; border-radius: 6px; padding: 3px 8px; font-size: 11px;
+    font-weight: 700; letter-spacing: 1px; z-index: 99999; }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <header class="side-head">
+      <h1>Chats</h1>
+      <div id="search" contenteditable="true" data-tab="3" role="textbox" aria-label="Search or start a new chat"></div>
+    </header>
+    <div id="pane-side">
+      <div id="chat-list" role="listbox" aria-label="Chat list"></div>
+    </div>
+  </aside>
+  <main id="main">
+    <header id="conv-header">
+      <div class="avatar" id="conv-avatar" style="background:#00a884">MD</div>
+      <div>
+        <div class="conv-title" data-testid="conversation-info-header"><span dir="auto" class="copyable-text" id="conv-title">Marc Deckers</span></div>
+        <div class="conv-sub" id="conv-sub">online</div>
+      </div>
+    </header>
+    <div id="messages"></div>
+    <footer id="compose-footer">
+      <div id="compose" contenteditable="true" role="textbox" data-tab="10" aria-label="Type a message"></div>
+      <div class="foot-hint">Enter sends locally in this mock</div>
+    </footer>
+  </main>
+</div>
+<div id="mock-pill">MOCK</div>
+
+<script>
+(function () {
+  'use strict';
+  // Test data. Titles are the exact strings a privacy config would store.
+  var CHATS = [
+    { slug: 'marc', title: 'Marc Deckers', color: '#00a884', snippet: 'Sounds good, see you Friday', unread: 0,
+      msgs: [
+        { dir: 'in', text: 'Hey! Are we still on for Friday?', ts: '11:42', pre: true },
+        { dir: 'out', text: 'Yes, 18:00 at the usual place', ts: '11:45' },
+        { dir: 'in', text: 'Perfect. Should I bring the cables this time?', ts: '11:46' },
+        { dir: 'out', text: 'Ha, yes please. Last time was a disaster.', ts: '11:47' },
+        { dir: 'in', text: 'Done. See you there.', ts: '11:48' },
+        { dir: 'in', text: 'One more thing, can you bring the invoice too?', ts: '12:04' }
+      ] },
+    { slug: 'mama', title: 'Mama', color: '#7f66ff', snippet: 'Did you eat?', unread: 2,
+      msgs: [
+        { dir: 'in', text: 'Did you eat?', ts: '18:10', pre: true },
+        { dir: 'out', text: 'Yes mama, I cooked today', ts: '18:22' },
+        { dir: 'in', text: 'Real food or sandwiches?', ts: '18:23' },
+        { dir: 'out', text: 'Real food, I promise', ts: '18:25' },
+        { dir: 'in', text: 'Good. Call me tomorrow', ts: '18:26' },
+        { dir: 'in', text: 'And sleep before midnight', ts: '18:26' }
+      ] },
+    { slug: 'dr-hendriks', title: 'Dr. Hendriks', color: '#dfb100', snippet: 'Appointment moved to 14:30', unread: 0,
+      msgs: [
+        { dir: 'in', text: 'Your appointment moved to 14:30 on Thursday.', ts: '09:02', pre: true },
+        { dir: 'out', text: 'That works. Same entrance?', ts: '09:20' },
+        { dir: 'in', text: 'Yes, second floor. Bring your card.', ts: '09:21' },
+        { dir: 'out', text: 'Will do, thank you', ts: '09:22' }
+      ] },
+    { slug: 'team-building', title: 'Team Building', color: '#e5536f', snippet: 'Anna: bring the projector', unread: 0,
+      msgs: [
+        { dir: 'in', text: 'Anna: someone bring the projector please', ts: '15:30', pre: true },
+        { dir: 'out', text: 'I can take it', ts: '15:31' },
+        { dir: 'in', text: 'Jonas: great, pick it up at the office', ts: '15:33' }
+      ] },
+    { slug: 'deliveries', title: 'Deliveries', color: '#02a6c2', snippet: 'Your parcel is 2 stops away', unread: 0,
+      msgs: [
+        { dir: 'in', text: 'Your parcel is 2 stops away.', ts: '13:58', pre: true },
+        { dir: 'in', text: 'Delivery attempted at 14:06. Pickup point: shop on corner.', ts: '14:10' }
+      ] },
+    { slug: 'jolien', title: 'Jolien Vermeer', color: '#dd4a5c', snippet: 'Thanks for the intro!', unread: 0,
+      msgs: [
+        { dir: 'in', text: 'Thanks for the intro!', ts: '10:11', pre: true },
+        { dir: 'out', text: 'No problem, he seemed keen', ts: '10:14' },
+        { dir: 'in', text: 'Meeting booked for Tuesday', ts: '10:15' }
+      ] },
+    { slug: 'phone-32', title: '+32 499 00 00 00', color: '#5a7a9d', snippet: 'Hi, is this still available?', unread: 1,
+      msgs: [
+        { dir: 'in', text: 'Hi, is this still available?', ts: '08:44', pre: true },
+        { dir: 'out', text: 'Yes it is', ts: '08:59' },
+        { dir: 'in', text: 'Can I pick it up today after 17:00?', ts: '09:01' }
+      ] },
+    { slug: 'notary', title: 'Notary Office', color: '#8a6d3b', snippet: 'Please sign page 4 and return', unread: 1,
+      msgs: [
+        { dir: 'in', text: 'Please sign page 4 and return the document this week.', ts: '11:03', pre: true },
+        { dir: 'out', text: 'Understood, I will drop it off Friday', ts: '11:30' }
+      ] },
+    { slug: 'gym', title: 'Gym Buddy', color: '#41b883', snippet: 'Leg day at 7?', unread: 0,
+      msgs: [
+        { dir: 'in', text: 'Leg day at 7?', ts: '06:45', pre: true },
+        { dir: 'out', text: 'See you there', ts: '06:50' }
+      ] },
+    { slug: 'kbc', title: 'Kbc Bank', color: '#1a5fba', snippet: 'Your statement is ready', unread: 0,
+      msgs: [
+        { dir: 'in', text: 'Your monthly statement is ready in the app.', ts: '07:00', pre: true }
+      ] },
+    { slug: 'airbnb', title: 'Airbnb Host', color: '#ff5a5f', snippet: 'Check-in from 15:00', unread: 0,
+      msgs: [
+        { dir: 'in', text: 'Hi! Check-in from 15:00. The key is in the box, code 2026.', ts: '16:40', pre: true },
+        { dir: 'out', text: 'Great, arriving around 16:00', ts: '16:44' }
+      ] },
+    { slug: 'sofie', title: 'Sofie', color: '#b65fc9', snippet: 'Call me when you land', unread: 0,
+      msgs: [
+        { dir: 'in', text: 'Call me when you land', ts: '21:10', pre: true },
+        { dir: 'out', text: 'Will do, boarding now', ts: '21:12' }
+      ] },
+    { slug: 'work-crew', title: 'Work Crew', color: '#6c8ffb', snippet: 'Anna: deck v3 uploaded', unread: 3,
+      msgs: [
+        { dir: 'in', text: 'Anna: deck v3 uploaded to the drive', ts: '14:02', pre: true },
+        { dir: 'in', text: 'Pieter: reviewing now', ts: '14:05' },
+        { dir: 'out', text: 'I will look at the numbers section tonight', ts: '14:20' },
+        { dir: 'in', text: 'Anna: client moved the call to Thursday 10:00', ts: '14:31' }
+      ] },
+    { slug: 'unknown-44', title: 'Unknown +44', color: '#8896a6', snippet: 'Hi, sorry who is this?', unread: 5,
+      msgs: [
+        { dir: 'in', text: 'Hi, sorry who is this?', ts: '22:47', pre: true },
+        { dir: 'in', text: 'You texted me about the flat?', ts: '22:48' }
+      ] }
+  ];
+
+  function bySlug(slug) {
+    for (var i = 0; i < CHATS.length; i++) if (CHATS[i].slug === slug) return CHATS[i];
+    return null;
+  }
+  function initials(title) {
+    var t = title.replace(/[^A-Za-z0-9 ]/g, '').trim();
+    var parts = t.split(/\s+/).filter(Boolean);
+    if (!parts.length) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  // ----- title normalization (KEEP IN SYNC with privacy-inject.js and
+  // src/shared/normalize.js; same semantics so the search filter matches the
+  // way the inject scripts compare titles) -----
+  var EMOJI_RE = (function () {
+    try { return new RegExp('[\\p{Extended_Pictographic}]', 'gu'); }
+    catch (e) { return /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}️]/gu; }
+  })();
+  var STRIP_RE = (function () {
+    try { return new RegExp('[\\p{P}\\p{S}\\p{M}\\p{C}]', 'gu'); }
+    catch (e) { return /[!-/:-@[-`{-~ -¿ -⁯⸀-⹿︀-️‍]/gu; }
+  })();
+  function normalizeTitle(str) {
+    if (typeof str !== 'string') return '';
+    var t = str.normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[‍︎️]/g, '')
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
+    t = t.replace(EMOJI_RE, '').replace(STRIP_RE, '').replace(/\s+/g, ' ').trim();
+    return t;
+  }
+  // ----- end KEEP IN SYNC block -----
+
+  // ----- chat list -----
+  var listEl = document.getElementById('chat-list');
+
+  function buildRow(chat) {
+    var row = el('div', 'row');
+    row.setAttribute('role', 'row');
+    row.setAttribute('tabindex', '0');
+    row.setAttribute('data-slug', chat.slug);
+
+    var av = el('div', 'avatar', initials(chat.title));
+    av.style.background = chat.color;
+    row.appendChild(av);
+
+    var main = el('div', 'row-main');
+    var top = el('div', 'row-top');
+    var titleSpan = el('span', 'row-title', chat.title);
+    titleSpan.setAttribute('dir', 'auto');
+    top.appendChild(titleSpan);
+    top.appendChild(el('span', 'row-time', chat.msgs.length ? chat.msgs[chat.msgs.length - 1].ts : '12:00'));
+    main.appendChild(top);
+
+    var bottom = el('div', 'row-bottom');
+    var snip = el('span', 'row-snippet', chat.snippet);
+    snip.setAttribute('dir', 'auto');
+    bottom.appendChild(snip);
+    if (chat.unread > 0) {
+      var badge = el('span', 'badge', String(chat.unread));
+      badge.setAttribute('aria-label', chat.unread + ' unread messages');
+      badge.setAttribute('title', chat.unread + ' unread');
+      bottom.appendChild(badge);
+    }
+    main.appendChild(bottom);
+    row.appendChild(main);
+
+    row.addEventListener('click', function () { openChat(chat.slug); clearSearch(); });
+    row.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); openChat(chat.slug); }
+    });
+    return row;
+  }
+  CHATS.forEach(function (chat) { listEl.appendChild(buildRow(chat)); });
+
+  // ----- search: contenteditable box (div[data-tab="3"] inside #side header,
+  // the first selector in the v2 open-chat chain). Typing filters chat rows
+  // live (normalized substring). This marks its hiding with data-search-hidden;
+  // the privacy pass marks its own with data-wab-hidden, and neither
+  // overwrites the other's rows. Enter opens the first matching chat, Escape
+  // clears, and opening a chat from a result clears the filter, the way
+  // WhatsApp collapses its search. -----
+  var searchEl = document.getElementById('search');
+
+  function searchQuery() {
+    return searchEl.textContent.replace(/\s+/g, ' ').trim();
+  }
+  function titleMatchesQuery(title, q) {
+    if (!q) return true;
+    var nq = normalizeTitle(q);
+    if (nq) return normalizeTitle(title).indexOf(nq) !== -1;
+    return title.toLowerCase().indexOf(q.toLowerCase()) !== -1;
+  }
+  function applyFilter(q) {
+    var rows = listEl.children;
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var title = (row.querySelector('.row-title') || {}).textContent || '';
+      var match = titleMatchesQuery(title, q);
+      if (match) {
+        if (row.getAttribute('data-search-hidden')) {
+          row.removeAttribute('data-search-hidden');
+          if (!row.getAttribute('data-wab-hidden')) row.style.display = '';
+        }
+      } else {
+        row.setAttribute('data-search-hidden', '1');
+        if (!row.getAttribute('data-wab-hidden')) row.style.display = 'none';
+      }
+    }
+  }
+  function clearSearch() {
+    if (searchQuery()) searchEl.textContent = '';
+    applyFilter('');
+  }
+  function firstVisibleRow() {
+    for (var i = 0; i < listEl.children.length; i++) {
+      var row = listEl.children[i];
+      if (!row.getAttribute('data-search-hidden') &&
+          row.getAttribute('data-wab-hidden') !== '1') return row;
+    }
+    return null;
+  }
+  searchEl.addEventListener('input', function () {
+    applyFilter(searchQuery());
+  });
+  searchEl.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      var row = firstVisibleRow();
+      if (row) { openChat(row.getAttribute('data-slug')); clearSearch(); }
+    } else if (ev.key === 'Escape') {
+      ev.preventDefault();
+      clearSearch();
+    }
+  });
+
+  // ----- open conversation -----
+  var titleEl = document.getElementById('conv-title');
+  var subEl = document.getElementById('conv-sub');
+  var avatarEl = document.getElementById('conv-avatar');
+  var msgsEl = document.getElementById('messages');
+  var composeEl = document.getElementById('compose');
+  var currentSlug = null;
+
+  function bubble(chat, m) {
+    var b = el('div', 'bubble ' + (m.dir === 'out' ? 'message-out' : 'message-in'));
+    b.setAttribute('data-testid', 'msg-container');
+    if (m.pre && m.dir === 'in') {
+      b.setAttribute('data-pre-plain-text', '[' + m.ts + ', 20/11/2026] ' + chat.title + ': ');
+    }
+    var s = el('span', null, m.text);
+    s.setAttribute('dir', 'auto');
+    b.appendChild(s);
+    var t = el('span', 'time', m.ts);
+    t.setAttribute('aria-label', m.ts);
+    b.appendChild(t);
+    return b;
+  }
+
+  function render() {
+    var m = location.hash.match(/^#\/chat\/([a-z0-9-]+)$/i);
+    var chat = m ? bySlug(m[1]) : null;
+    if (!chat) chat = CHATS[0];
+    currentSlug = chat.slug;
+
+    titleEl.textContent = chat.title;
+    subEl.textContent = chat.msgs.length > 3 ? 'online' : 'last seen recently';
+    avatarEl.textContent = initials(chat.title);
+    avatarEl.style.background = chat.color;
+
+    msgsEl.textContent = '';
+    msgsEl.appendChild(el('div', 'notice',
+      'Messages in this mock are local test data. Nothing leaves this page.'));
+    msgsEl.appendChild(el('div', 'divider', 'TODAY'));
+    chat.msgs.forEach(function (msg) { msgsEl.appendChild(bubble(chat, msg)); });
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+
+    // mark active and clear the unread badge of the opened chat
+    for (var i = 0; i < listEl.children.length; i++) {
+      var row = listEl.children[i];
+      var isActive = row.getAttribute('data-slug') === chat.slug;
+      row.className = 'row' + (isActive ? ' active' : '');
+      if (isActive) {
+        chat.unread = 0;
+        var badge = row.querySelector('.badge');
+        if (badge) badge.parentNode.removeChild(badge);
+      }
+    }
+  }
+
+  function openChat(slug) {
+    if (location.hash === '#/chat/' + slug) render();
+    else location.hash = '#/chat/' + slug; // hashchange triggers render
+  }
+
+  window.addEventListener('hashchange', render);
+  render();
+
+  // ----- compose: typing + Enter appends a local outgoing bubble -----
+  composeEl.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Enter' || ev.shiftKey) return;
+    ev.preventDefault(); // no send button exists and none is simulated
+    var text = composeEl.innerText.replace(/\s+/g, ' ').trim();
+    if (!text) return;
+    var chat = bySlug(currentSlug) || CHATS[0];
+    var now = new Date();
+    var hh = String(now.getHours()).padStart(2, '0');
+    var mm = String(now.getMinutes()).padStart(2, '0');
+    var msg = { dir: 'out', text: text, ts: hh + ':' + mm };
+    chat.msgs.push(msg);
+    msgsEl.appendChild(bubble(chat, msg));
+    composeEl.innerText = '';
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+
+    // refresh the row snippet to mimic a real conversation list
+    for (var i = 0; i < listEl.children.length; i++) {
+      var row = listEl.children[i];
+      if (row.getAttribute('data-slug') === chat.slug) {
+        var snip = row.querySelector('.row-snippet');
+        if (snip) snip.textContent = text;
+        var time = row.querySelector('.row-time');
+        if (time) time.textContent = msg.ts;
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>

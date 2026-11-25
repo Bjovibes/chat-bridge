@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Chat Bridge</title>
+<link rel="stylesheet" href="shell.css">
+<link rel="stylesheet" href="ai-panel/ai-panel.css">
+<link rel="stylesheet" href="glass.css">
+<link rel="stylesheet" href="ai-panel/glass-override.css">
+<link rel="stylesheet" href="people.css">
+<link rel="stylesheet" href="render/render.css">
+<link rel="stylesheet" href="debug/debug.css">
+<link rel="stylesheet" href="activity/activity.css">
+</head>
+<body data-layout="single">
+
+<div id="boot-error" class="boot-error" hidden>
+  <div class="boot-error-card">
+    <h1>Shell failed to start: preload missing</h1>
+    <p>Close the app and start it again. If it keeps happening, the install is broken.</p>
+  </div>
+</div>
+
+<div id="shell" class="shell" hidden>
+
+  <aside id="rail" class="rail">
+    <!-- V12 S3: rail top with the fold toggle. Folded (body.wab-rail-folded,
+         set by people.js) collapses the rail to a 64px avatar column. -->
+    <div class="rail-top">
+      <button id="rail-fold-btn" class="rail-fold-btn" type="button" title="Fold the rail (avatars only)" aria-label="Fold the rail" aria-expanded="true" aria-controls="rail">
+        <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2.5 4.5 7 9 11.5"/></svg>
+      </button>
+      <div class="rail-brand">
+        <div class="wordmark">Chat Bridge</div>
+        <div class="rail-sub">Conversation desk</div>
+      </div>
+    </div>
+    <div id="people-rail"></div>
+    <div class="rail-sep" role="separator"></div>
+    <div class="rail-label">Sender accounts</div>
+    <div id="account-list" class="account-list"></div>
+    <!-- V12.1 T3: the bottom-left account dock is gone. The sender cards above
+         already show each account's link status; deep health lives in the Debug
+         panel in Settings. -->
+  </aside>
+
+  <div class="main">
+    <div class="toolbar">
+      <div id="layout-switch" class="layout-switch" role="group" aria-label="Layout">
+        <button type="button" class="mode-btn" data-mode="single" title="Single" aria-label="Single">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="1" y="2" width="12" height="10" rx="1"/></svg>
+        </button>
+        <button type="button" class="mode-btn" data-mode="split2" title="Split 2" aria-label="Split 2">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="1" y="2" width="5" height="10" rx="1"/><rect x="8" y="2" width="5" height="10" rx="1"/></svg>
+        </button>
+        <button type="button" class="mode-btn" data-mode="split3" title="Split 3" aria-label="Split 3">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="0.8" y="2" width="3.4" height="10" rx="1"/><rect x="5.3" y="2" width="3.4" height="10" rx="1"/><rect x="9.8" y="2" width="3.4" height="10" rx="1"/></svg>
+        </button>
+        <button type="button" class="mode-btn" data-mode="grid5" title="Grid 5" aria-label="Grid 5">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><rect x="0.8" y="1.2" width="3.4" height="5" rx="1"/><rect x="5.3" y="1.2" width="3.4" height="5" rx="1"/><rect x="9.8" y="1.2" width="3.4" height="5" rx="1"/><rect x="0.8" y="7.2" width="3.4" height="5" rx="1"/><rect x="5.3" y="7.2" width="3.4" height="5" rx="1"/></svg>
+        </button>
+        <button type="button" class="mode-btn" data-mode="tabs" title="Tabs" aria-label="Tabs">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M1 5v7h12V5"/><path d="M1 2.5h4.5V5"/></svg>
+        </button>
+      </div>
+      <div class="toolbar-spacer"></div>
+      <button id="ai-btn" class="toolbar-btn" type="button" title="AI sidekick (Ctrl+I)">AI sidekick</button>
+      <button id="settings-btn" class="toolbar-btn" type="button" title="Settings">Settings</button>
+    </div>
+
+    <div id="slot-area" class="slot-area">
+      <div id="tabstrip" class="tabstrip" hidden></div>
+      <div class="slot" data-slot="0"><div class="slot-name" hidden></div></div>
+      <div class="slot" data-slot="1"><div class="slot-name" hidden></div></div>
+      <div class="slot" data-slot="2"><div class="slot-name" hidden></div></div>
+      <div class="slot" data-slot="3"><div class="slot-name" hidden></div></div>
+      <div class="slot" data-slot="4"><div class="slot-name" hidden></div></div>
+      <div id="empty-state" class="empty-state" hidden>
+        <h2>No accounts yet</h2>
+        <p>Add an account to start. The owner scans a QR code from their own phone.</p>
+        <button id="empty-add-btn" class="btn-primary" type="button">Add account</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="modal-add" class="overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="add-title">
+    <h2 id="add-title">Add an account</h2>
+    <p class="consent">Only link accounts whose owner explicitly authorized you. They can unlink anytime from their phone.</p>
+    <!-- V14 U3: platform selector. Defaults to WhatsApp; the connect flow and
+         the T5 picker preselect via shell.js setAddPlatform. Glyph classes are
+         the live T4 badge classes; swap for U1's logo classes when they land. -->
+    <div class="field"><span class="field-label">Platform</span>
+      <div id="add-platform-sel" class="plat-sel" role="group" aria-label="Platform">
+        <button id="add-plat-wa" class="plat-sel-btn active" type="button" data-platform="whatsapp" aria-pressed="true">
+          <span class="plat-sel-logo platform-badge-whatsapp" aria-hidden="true"></span><span>WhatsApp</span>
+        </button>
+        <button id="add-plat-tg" class="plat-sel-btn" type="button" data-platform="telegram" aria-pressed="false">
+          <span class="plat-sel-logo platform-badge-telegram" aria-hidden="true"></span><span>Telegram</span>
+        </button>
+      </div>
+      <p id="add-plat-hint" class="plat-sel-hint">The owner scans from their phone: WhatsApp, Settings, Linked devices, Link a device.</p>
+    </div>
+    <label class="field"><span class="field-label">Name</span>
+      <input id="add-name" type="text" maxlength="40" placeholder="Partner name" autocomplete="off">
+    </label>
+    <div class="field"><span class="field-label">Color</span>
+      <div id="add-swatches" class="swatches"></div>
+    </div>
+    <!-- E3: optional sender photo. The preview circle shows the picked photo
+         or live initials of the typed name; the button opens the shared
+         hidden file input (EDIT 3). Saved on this PC only, never sent. -->
+    <div class="field"><span class="field-label">Profile photo</span>
+      <div class="avatar-field">
+        <span id="add-avatar-preview" class="acc-avatar is-preview" aria-hidden="true"></span>
+        <button id="add-avatar-btn" class="btn-ghost avatar-pick-btn" type="button">Choose photo</button>
+        <span class="avatar-field-hint">Optional. Squared to a small circle, stays on this PC.</span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" type="button" data-close>Cancel</button>
+      <button id="add-create" class="btn-primary" type="button">Create</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-remove" class="overlay" hidden>
+  <div class="modal modal-narrow" role="dialog" aria-modal="true" aria-labelledby="remove-title">
+    <h2 id="remove-title">Remove account?</h2>
+    <p class="remove-copy">The session on this PC is deleted. Their WhatsApp account is untouched.</p>
+    <div class="modal-actions">
+      <button class="btn-ghost" type="button" data-close>Cancel</button>
+      <button id="remove-confirm" class="btn-danger" type="button">Remove</button>
+    </div>
+  </div>
+</div>
+
+<!-- E3: the shared avatar file input. Never inside #account-list or any
+     modal: both re-render freely. shell.js grabs it by id and rebuilds it
+     at body level if this markup ever goes missing (stand-down law). -->
+<input id="acc-avatar-input" type="file" accept="image/*" hidden>
+
+<div id="ctx-menu" class="ctx-menu" hidden>
+  <button id="ctx-rename" class="ctx-item" type="button">Rename</button>
+  <div class="ctx-colors">
+    <span class="ctx-label">Color</span>
+    <div id="ctx-swatches" class="swatches"></div>
+  </div>
+  <button id="ctx-remove" class="ctx-item ctx-danger" type="button">Remove</button>
+</div>
+
+<div id="settings" class="settings" hidden>
+  <div class="settings-head">
+    <h2>Settings</h2>
+    <button id="settings-close" class="btn-ghost" type="button">Close</button>
+  </div>
+  <div class="settings-body">
+
+    <section>
+      <h3>AI provider</h3>
+      <label class="field"><span class="field-label">Provider</span>
+        <select id="ai-provider">
+          <option value="openai-compatible">openai-compatible</option>
+          <option value="anthropic">anthropic</option>
+        </select>
+      </label>
+      <label class="field"><span class="field-label">Base URL</span>
+        <input id="ai-baseurl" type="text" placeholder="https://api.openai.com/v1" autocomplete="off">
+      </label>
+      <label class="field"><span class="field-label">Model</span>
+        <input id="ai-model" type="text" placeholder="model name" autocomplete="off">
+      </label>
+      <label class="field"><span class="field-label">API key</span>
+        <input id="ai-key" type="password" placeholder="paste key" autocomplete="off">
+      </label>
+      <label class="field"><span class="field-label">Context messages</span>
+        <input id="ai-maxctx" type="number" min="4" max="200" step="1" value="40">
+      </label>
+      <div id="ai-test-result" class="test-result" hidden></div>
+      <div class="modal-actions">
+        <button id="ai-test" class="btn-ghost" type="button">Test</button>
+        <button id="ai-save" class="btn-primary" type="button">Save</button>
+      </div>
+    </section>
+
+    <section>
+      <h3>Privacy</h3>
+      <label class="field"><span class="field-label">Account</span>
+        <select id="privacy-account"></select>
+      </label>
+      <label class="field"><span class="field-label">Mode</span>
+        <select id="privacy-mode">
+          <option value="all">All chats</option>
+          <option value="allow">Selected chats only</option>
+          <option value="deny">Hide selected</option>
+          <option value="only">Only this contact</option>
+        </select>
+      </label>
+      <p id="privacy-hint" class="privacy-hint"></p>
+      <input id="privacy-filter" type="text" placeholder="Type a name to find the chat" autocomplete="off">
+      <div id="privacy-chats" class="privacy-chats"></div>
+      <div class="modal-actions">
+        <button id="privacy-save" class="btn-primary" type="button">Save</button>
+      </div>
+    </section>
+
+    <section>
+      <h3>Accounts</h3>
+      <p class="privacy-hint">Add a sender account. The owner scans the QR from their own phone.</p>
+      <div class="modal-actions">
+        <button id="settings-add-account" class="btn-primary" type="button">Add account</button>
+      </div>
+    </section>
+
+    <!-- v12.7 G1: outgoing activity stats (window.WABActivity), fragment-activity.html -->
+    <div id="activity-panel-root" hidden>
+      <section class="wab-activity-section">
+
+        <h3>Activity</h3>
+
+        <div id="wab-activity-note" class="wab-activity-note" hidden></div>
+
+        <div id="wab-activity-stats" class="wab-activity-stats" hidden>
+          <div class="wab-activity-tile">
+            <span id="wab-activity-today" class="wab-activity-tile-value">0</span>
+            <span class="wab-activity-tile-label">Today</span>
+          </div>
+          <div class="wab-activity-tile">
+            <span id="wab-activity-week" class="wab-activity-tile-value">0</span>
+            <span class="wab-activity-tile-label">This week</span>
+          </div>
+          <div class="wab-activity-tile">
+            <span id="wab-activity-total" class="wab-activity-tile-value">0</span>
+            <span class="wab-activity-tile-label">All time</span>
+          </div>
+          <div class="wab-activity-tile">
+            <span id="wab-activity-last" class="wab-activity-tile-value wab-activity-tile-time">Never</span>
+            <span class="wab-activity-tile-label">Last send</span>
+          </div>
+        </div>
+
+        <div id="wab-activity-empty" class="wab-activity-empty" hidden>
+          No sends yet. Your outgoing messages will be counted here.
+        </div>
+
+        <div id="wab-activity-accounts-block" class="wab-activity-block" hidden>
+          <div class="wab-activity-head">
+            <span class="wab-activity-label">By account</span>
+          </div>
+          <div id="wab-activity-accounts" class="wab-activity-bars"></div>
+        </div>
+
+        <div id="wab-activity-chats-block" class="wab-activity-block" hidden>
+          <div class="wab-activity-head wab-activity-head-chats">
+            <span class="wab-activity-label">Top chats</span>
+          </div>
+          <div id="wab-activity-chats" class="wab-activity-bars wab-activity-chats"></div>
+        </div>
+
+        <p class="wab-activity-legend">Counts and names only. Message text is never recorded.</p>
+
+      </section>
+    </div>
+
+    <div id="debug-panel-root" hidden>
+      <section class="wab-debug-section">
+        <h3>Debug</h3>
+        <div class="wab-debug-head">
+          <span class="wab-debug-label">Engines</span>
+          <button id="wab-debug-refresh" class="wab-debug-refresh" type="button">Refresh</button>
+        </div>
+        <div id="wab-debug-engines-list" class="wab-debug-engines"></div>
+        <div class="wab-debug-head wab-debug-head-feed">
+          <span class="wab-debug-label">Event feed</span>
+          <span id="wab-debug-feed-count" class="wab-debug-count"></span>
+        </div>
+        <p id="wab-debug-people-age" class="wab-debug-people-age" hidden></p>
+        <div id="wab-debug-feed" class="wab-debug-feed" aria-label="Debug event feed">
+          <div id="wab-debug-feed-empty" class="wab-debug-empty">No events yet.</div>
+        </div>
+        <p class="wab-debug-legend">Step names and counts only. No contact names or message content ever appear.</p>
+      </section>
+    </div>
+
+    <section class="about">
+      <h3>About</h3>
+      <p>Chat Bridge 0.2.0</p>
+      <p>Drafts never send themselves. You press send, always.</p>
+      <p>All data stays on this PC. Nothing is synced.</p>
+    </section>
+
+  </div>
+</div>
+
+<div id="screen-switcher" class="screen-switcher" hidden>
+  <button id="ss-prev" class="ss-arrow" type="button" title="Previous screen (Ctrl+Left)" aria-label="Previous screen">&#8249;</button>
+  <div id="ss-dots" class="ss-dots" role="tablist" aria-label="Screens"></div>
+  <button id="ss-next" class="ss-arrow" type="button" title="Next screen (Ctrl+Right)" aria-label="Next screen">&#8250;</button>
+</div>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+
+<script src="shell.js"></script>
+
+<div id="ai-panel-root" hidden role="region" aria-label="AI sidekick">
+  <div class="ai-panel-card">
+
+    <header class="ai-panel-header">
+      <div class="ai-panel-heading">
+        <span class="ai-panel-title">AI sidekick</span>
+        <span id="ai-panel-context" class="ai-panel-context" title="">for this chat &middot; this account</span>
+      </div>
+      <button id="ai-panel-close" class="ai-panel-close" type="button" aria-label="Close sidekick">&times;</button>
+    </header>
+
+    <div class="ai-panel-body">
+
+      <div id="ai-panel-nokey" class="ai-panel-nokey" hidden>
+        <p class="ai-panel-nokey-text">Add your AI key in Settings to use the sidekick.</p>
+        <button id="ai-panel-open-settings" class="ai-panel-btn" type="button">Open settings</button>
+      </div>
+
+      <div id="ai-panel-main" class="ai-panel-main">
+        <div id="ai-panel-chips" class="ai-panel-chips">
+          <button class="ai-panel-chip" data-command="draft-reply" type="button">Draft reply</button>
+          <button class="ai-panel-chip" data-command="summarize" type="button">Summarize</button>
+          <button class="ai-panel-chip" data-command="reconnect" type="button">Reconnect</button>
+          <button class="ai-panel-chip" data-command="lookup" type="button">What we know</button>
+          <button class="ai-panel-chip" data-command="freeform" type="button">Freeform</button>
+        </div>
+
+        <div class="ai-panel-instruction">
+          <textarea id="ai-panel-instruction" rows="2" placeholder="Tone notes for the commands above, or your own instruction for Freeform"></textarea>
+          <button id="ai-panel-run" class="ai-panel-btn" type="button">Run</button>
+        </div>
+
+        <div id="ai-panel-hint" class="ai-panel-hint" hidden></div>
+        <div id="ai-panel-working" class="ai-panel-working" hidden>working...</div>
+        <div id="ai-panel-error" class="ai-panel-error" role="alert" hidden></div>
+
+        <div id="ai-panel-result" class="ai-panel-result" hidden>
+          <div class="ai-panel-result-meta">
+            <span id="ai-panel-wordcount">0 words</span>
+            <span class="ai-panel-result-actions">
+              <button id="ai-panel-copy" class="ai-panel-btn ai-panel-btn-small ai-panel-btn-quiet" type="button">Copy</button>
+              <button id="ai-panel-insert" class="ai-panel-btn ai-panel-btn-small" type="button">Insert into chat</button>
+            </span>
+          </div>
+          <pre id="ai-panel-text" class="ai-panel-text"></pre>
+        </div>
+      </div>
+
+    </div>
+
+    <footer class="ai-panel-footer">
+      <span id="ai-panel-usage">0 calls this session</span>
+      <span class="ai-panel-note">Drafts never send themselves</span>
+    </footer>
+
+    <div id="ai-panel-toast" class="ai-panel-toast" hidden></div>
+  </div>
+</div>
+
+<script src="ai-panel/ai-panel.js"></script>
+<!-- v2 people UI (builder B2 fragment) -->
+<div id="wab-people-root">
+
+  <div id="people-rail" class="people-rail" data-wab-people-block>
+    <div class="people-head">
+      <span class="people-title">People</span>
+      <button id="people-refresh-btn" class="people-search-btn" type="button" title="Refresh people" aria-label="Refresh people" style="margin-right:4px">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 7a5 5 0 1 1-1.5-3.6"/><path d="M12 1.5V4h-2.5"/></svg>
+      </button>
+      <button id="people-search-btn" class="people-search-btn" type="button" title="Search all accounts (Ctrl+K)" aria-label="Search all accounts">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="6" cy="6" r="4.5"/><path d="M9.5 9.5 13 13"/></svg>
+      </button>
+    </div>
+    <input id="people-filter" class="people-filter" type="text" placeholder="Filter people" autocomplete="off" spellcheck="false" aria-label="Filter people">
+    <div id="people-list" class="people-list" role="listbox" aria-label="People"></div>
+  </div>
+
+  <div id="search-palette" class="people-palette" hidden>
+    <div class="people-palette-card" role="dialog" aria-modal="true" aria-label="Search people">
+      <div class="people-palette-top">
+        <span class="people-palette-glyph" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="6" r="4.5"/><path d="M9.5 9.5 13 13"/></svg>
+        </span>
+        <input id="palette-input" type="text" placeholder="Search every account" autocomplete="off" spellcheck="false" aria-label="Search people">
+        <button id="palette-close" class="people-palette-close" type="button" aria-label="Close search">&times;</button>
+      </div>
+      <div id="palette-results" class="people-palette-results" role="listbox" aria-label="Search results"></div>
+      <div class="people-palette-foot">
+        <span>Up and down move</span>
+        <span>Enter opens</span>
+        <span>Esc closes</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script src="people.js"></script>
+<!-- v3 conversation renderer (builder E fragment) -->
+<div id="render-root" hidden></div>
+<script src="render/render.js"></script>
+<script src="debug/debug.js"></script>
+<script src="activity/activity.js"></script>
+<script>
+  // Integration bridge (spine-owned): panel boot + the toolbar's Ctrl+I / "AI sidekick" toggle
+  // + the v2 people layer's toast events, bridged into the shell's toast stack.
+  (function () {
+    function bootPanel() {
+      try { if (window.WABAiPanel) window.WABAiPanel.init(); } catch (e) { /* panel fails soft */ }
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootPanel);
+    else bootPanel();
+    window.addEventListener('wab:toggle-ai', function () {
+      try {
+        var root = document.getElementById('ai-panel-root');
+        if (!window.WABAiPanel || !root) return;
+        if (root.hidden) window.WABAiPanel.open({});
+        else window.WABAiPanel.close();
+      } catch (e) { /* fails soft */ }
+    });
+    // v12: bridge renderer pane-reply events into the spine debug ring.
+    window.addEventListener('wab:pane-reply', function (ev) {
+      try {
+        var d = ev && ev.detail;
+        if (d && window.wab && window.wab.debug && window.wab.debug.push) {
+          window.wab.debug.push('pane-reply', d.accountId, 'reply in pane ' + d.slot);
+        }
+      } catch (e) { /* debug must never break the desk */ }
+    });
+    // v2: people.js dispatches 'wab:toast-raw'; render it as a shell toast card.
+    window.addEventListener('wab:toast-raw', function (ev) {
+      try {
+        var text = ev && ev.detail && ev.detail.text;
+        if (!text) return;
+        var host = document.getElementById('toasts');
+        if (!host) return;
+        var t = document.createElement('div');
+        t.className = 'toast t-info';
+        t.textContent = String(text);
+        host.appendChild(t);
+        setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 5000);
+      } catch (e) { /* fails soft */ }
+    });
+  })();
+</script>
+</body>
+</html>

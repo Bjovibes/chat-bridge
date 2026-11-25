@@ -1,0 +1,37 @@
+<!-- v12 S1: the Debug panel fragment (window.WABDebug). Mirrors
+     build\src\ui\debug\fragment-debug.html.
+
+     Placement (integrator):
+     1. Paste this whole block inside #settings .settings-body, as a new
+        section between the Accounts section and the About section.
+     2. Add to index.html <head>: <link rel="stylesheet" href="debug/debug.css">
+     3. Add after the other UI scripts: <script src="debug/debug.js"></script>
+
+     The panel rides the Settings slide-over automatically: init() watches the
+     #settings hidden attribute and opens and closes with it. Manual control
+     stays available via WABDebug.open() and WABDebug.close(). -->
+
+<div id="debug-panel-root" hidden>
+  <section class="wab-debug-section">
+
+    <h3>Debug</h3>
+
+    <div class="wab-debug-head">
+      <span class="wab-debug-label">Engines</span>
+      <button id="wab-debug-refresh" class="wab-debug-refresh" type="button">Refresh</button>
+    </div>
+    <div id="wab-debug-engines-list" class="wab-debug-engines"></div>
+
+    <div class="wab-debug-head wab-debug-head-feed">
+      <span class="wab-debug-label">Event feed</span>
+      <span id="wab-debug-feed-count" class="wab-debug-count"></span>
+    </div>
+    <p id="wab-debug-people-age" class="wab-debug-people-age" hidden></p>
+    <div id="wab-debug-feed" class="wab-debug-feed" aria-label="Debug event feed">
+      <div id="wab-debug-feed-empty" class="wab-debug-empty">No events yet.</div>
+    </div>
+
+    <p class="wab-debug-legend">Step names and counts only. No contact names or message content ever appear.</p>
+
+  </section>
+</div>

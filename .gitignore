@@ -1,0 +1,13 @@
+# never: real chat screenshots and boot logs (third-party privacy)
+build/shots/
+
+# dependencies
+node_modules/
+
+# logs
+*.log
+
+# runtime junk
+*.tmp
+.DS_Store
+Thumbs.db

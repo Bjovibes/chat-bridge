@@ -1,0 +1,1206 @@
+/* Chat Bridge people.css, builder B2, evolved V12.6 Z3 (tagging-rail).
+   Dark glass, matches glass.css tokens.
+   Owns the people rail block, the Ctrl+K search palette and the reply-as chips.
+   Self-contained: defines its own prefixed vars, load order independent.
+
+   V12.1 T2 height law (owner: the list "stops" after 2 names):
+   #people-rail fills the rail's available height, #people-list scrolls with a
+   solid thin scrollbar under the filter. glass.css ships
+   #people-rail { flex: 0 1 auto; max-height: 58% } (SEAM: must die there);
+   the id+id rules below outrank it from this file until it does.
+
+   V12.5 Y3 signals law: typing dots live in the slot just before the unread
+   badge (both can show: dots then badge), the progress line is a 2px strip
+   under the row name. Both are pure CSS animations driven only by the
+   is-typing / is-progress row classes people.js derives from its state.
+
+   V12.6 Z3 pin law: people open in any pane or screen sort to the TOP of the
+   rail (and every other people surface) in pane-slot order, then everyone
+   else by last contact. The pin is ORDER ONLY: no class, no marker, no extra
+   chrome. Pinned rows keep the exact look they already had, including the
+   typing dots, the account glow, the open-person blink (which still marks
+   only the ACTIVE pane's person) and the unread badge. The command bar
+   reuses the existing palette row classes, so nothing new is styled here.
+
+   V14 T5 platform law: every surface that lists a person (rail rows,
+   palette rows, pane picker chips) carries a 4px platform dot after the
+   avatar: WhatsApp green, Telegram blue. The two brand colors are the
+   ones the Telegram adapter spec sanctions beside the glass tokens; the
+   green dot is platform identity, never the reply/live signal. While
+   body carries wab-loading (set by render.js during first load and
+   engine reconnects) the rail's refresh button pulses softly.
+
+   V14 U2 + D4 platform cards law: the sender section renders one card per
+   user (shell.js renderCards): bold name, a 24px logo row (WhatsApp +
+   Telegram), nothing else. Connected logos carry the brand glyphs at full
+   color plus a corner badge; unconnected logos sit dashed at low ink and
+   grow a plus on hover. A connected logo's click opens a compact detail
+   section (.pucard-sec) holding .pucard-acc control rows — the old flat
+   .account-card nodes are gone from the rail (D4). Classes: pucard-*,
+   plat-logo, plat-glyph-*, plat-choice, acc-tool-btn. Nothing here touches
+   the people rows, the filter or the refresh pulse. */
+
+:root {
+  --wabp-text: #ffffff;
+  --wabp-text-2: rgba(255, 255, 255, 0.74);
+  --wabp-text-3: rgba(255, 255, 255, 0.42);
+  --wabp-hairline: rgba(255, 255, 255, 0.22);
+  --wabp-hairline-strong: rgba(255, 255, 255, 0.34);
+  --wabp-surface: rgba(46, 46, 30, 0.40);
+  --wabp-surface-soft: rgba(255, 255, 255, 0.07);
+  --wabp-surface-hover: rgba(255, 255, 255, 0.12);
+  --wabp-surface-raised: rgba(255, 255, 255, 0.13);
+  --wabp-field: rgba(0, 0, 0, 0.30);
+  --wabp-blur: 30px;
+  --wabp-saturate: 1.5;
+  --wabp-radius: 12px;
+  --wabp-radius-pill: 999px;
+  --wabp-shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+  --wabp-catch: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  --wabp-on-light: #26261a;
+  --wabp-dot-fallback: rgba(255, 255, 255, 0.42);
+  --wabp-font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --wabp-glow-a: 0.25;
+}
+
+/* ---------- fragment root and rail mount ---------- */
+
+#wab-people-root {
+  font-family: var(--wabp-font);
+}
+
+/* The integrator's container inside the shell rail. people.js adds this class.
+   V12.1 T2: the host grows to fill every pixel the rail can spare; the
+   sender-accounts section below is capped from shell.css instead. */
+.people-rail-host {
+  flex: 1 1 auto;
+  min-height: 180px;
+  max-height: none;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.people-rail-host > .people-rail {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ---------- V12.1 T2: the glass.css cap kill ----------
+   glass.css (integrator-owned, loads earlier) ships
+   #people-rail { flex: 0 1 auto; min-height: 0; max-height: 58%; overflow: hidden }
+   which, stacked on this file's old 46% host cap, left the list ~27% of the
+   rail: two names and half a third. These higher-specificity rules (two ids,
+   or id+class) beat it regardless of load order, in the mounted position and
+   in the unmounted fallback. SEAM: when glass.css drops its cap, these become
+   redundant and harmless. */
+#rail #people-rail,
+.people-rail-host > #people-rail {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+#wab-people-root > .people-rail {
+  max-height: none;
+}
+
+/* Fallback look when the block was NOT moved and still sits at the fragment
+   root: render as a floating glass rail so it stays usable. */
+#wab-people-root > .people-rail {
+  position: fixed;
+  left: 12px;
+  top: 60px;
+  bottom: 12px;
+  width: 240px;
+  z-index: 90;
+  background: var(--wabp-surface);
+  backdrop-filter: blur(var(--wabp-blur)) saturate(var(--wabp-saturate));
+  -webkit-backdrop-filter: blur(var(--wabp-blur)) saturate(var(--wabp-saturate));
+  border: 1px solid var(--wabp-hairline);
+  border-radius: var(--wabp-radius);
+  box-shadow: var(--wabp-shadow), var(--wabp-catch);
+}
+
+/* ---------- people rail block ---------- */
+
+.people-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 10px 8px;
+  border-bottom: 1px solid var(--wabp-hairline);
+  font-family: var(--wabp-font);
+}
+
+.people-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+.people-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--wabp-text-2);
+}
+
+.people-search-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--wabp-radius-pill);
+  border: 1px solid var(--wabp-hairline);
+  background: var(--wabp-surface-soft);
+  color: var(--wabp-text-2);
+  box-shadow: var(--wabp-catch);
+}
+.people-search-btn:hover {
+  color: var(--wabp-text);
+  background: var(--wabp-surface-hover);
+}
+.people-search-btn:focus-visible {
+  outline: none;
+  border-color: var(--wabp-hairline-strong);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
+}
+
+.people-filter {
+  width: 100%;
+  padding: 7px 10px;
+  font-family: var(--wabp-font);
+  font-size: 12.5px;
+  color: var(--wabp-text);
+  background: var(--wabp-field);
+  border: 1px solid var(--wabp-hairline);
+  border-radius: 10px;
+  outline: none;
+}
+.people-filter::placeholder { color: var(--wabp-text-3); }
+.people-filter:focus {
+  border-color: var(--wabp-hairline-strong);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+}
+
+/* V12.1 T2: the list takes everything the block has left and scrolls inside
+   it; rows never shrink below 44px, so at a 900px window nine rows sit on
+   screen under the filter. */
+.people-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-right: 2px;
+}
+
+.people-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  flex: 0 0 auto;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--wabp-text);
+  font-family: var(--wabp-font);
+  text-align: left;
+  cursor: pointer;
+}
+.people-row:hover { background: var(--wabp-surface-soft); }
+.people-row:focus-visible {
+  outline: none;
+  border-color: var(--wabp-hairline-strong);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
+}
+
+/* ---------- V12 S3: account-color left glow (PR #6) ----------
+   Every row carries --wabp-acct (set inline by people.js) and shows a slim
+   left-edge strip at 0.25 opacity. While body carries wabp-reply-glow, the
+   rule injected by people.js lifts the matching account's rows to 0.6. */
+.people-row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 18%;
+  bottom: 18%;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--wabp-acct, rgba(255, 255, 255, 0.42));
+  opacity: var(--wabp-glow-a, 0.25);
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+/* ---------- V12 S3: open-person blink (PR #7) ----------
+   One steady CSS keyframes cycle at 1.2s: opacity pulse plus a soft account
+   color halo. No JS timers anywhere; render.js toggles the same class and the
+   animation simply plays. */
+.people-row.is-open-person {
+  background: var(--wabp-surface-raised);
+  border-color: var(--wabp-hairline-strong);
+  animation: wabp-open-blink 1.2s ease-in-out infinite;
+}
+@keyframes wabp-open-blink {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: -8px 0 16px -8px var(--wabp-acct, rgba(255, 255, 255, 0.42));
+  }
+  50% {
+    opacity: 0.62;
+    box-shadow: -8px 0 22px -6px var(--wabp-acct, rgba(255, 255, 255, 0.42));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .people-row.is-open-person { animation: none; }
+}
+
+.people-dot {
+  width: 10px;
+  height: 10px;
+  min-width: 10px;
+  border-radius: 50%;
+}
+
+.people-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.people-unread {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--wabp-radius-pill);
+  background: #ffffff;
+  color: var(--wabp-on-light);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+/* ---------- V12.5 Y3: typing dots (slot before the unread badge) ----------
+   Three 6px dots in the account color, 1.2s bounce cycle staggered 0.2s per
+   dot. The span sits in the row right before the badge, so typing and unread
+   can show at once: dots, then badge. At rest it is display none, so idle
+   rows never shift. */
+.people-typing {
+  display: none;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 3px;
+  height: 18px;
+  padding-right: 4px;
+}
+.people-row.is-typing .people-typing { display: inline-flex; }
+.people-typing i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--wabp-acct, rgba(255, 255, 255, 0.42));
+  animation: wabp-typing-bounce 1.2s ease-in-out infinite;
+}
+.people-typing i:nth-child(2) { animation-delay: 0.2s; }
+.people-typing i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes wabp-typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* ---------- V12.5 Y3: progress line under the name ----------
+   A 2px strip spanning the name column while a pane loads or receives a send
+   for this person: faint track, with a shimmer segment in the account color
+   at 0.7 opacity sweeping across. Hidden (opacity 0) until is-progress. */
+.people-progress {
+  position: absolute;
+  left: 47px;
+  right: 12px;
+  bottom: 5px;
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+.people-row.is-progress .people-progress { opacity: 1; }
+.people-progress::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  border-radius: 1px;
+  background: var(--wabp-acct, rgba(255, 255, 255, 0.42));
+  opacity: 0.7;
+}
+.people-row.is-progress .people-progress::before {
+  animation: wabp-progress-shimmer 1.2s linear infinite;
+}
+@keyframes wabp-progress-shimmer {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(260%); }
+}
+
+/* Reduced motion: the signals stay readable, they just stop moving. */
+@media (prefers-reduced-motion: reduce) {
+  .people-typing i { animation: none; opacity: 0.7; }
+  .people-row.is-progress .people-progress::before {
+    animation: none;
+    width: 100%;
+  }
+}
+
+.people-note {
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.people-note-main {
+  color: var(--wabp-text-2);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.people-note-sub {
+  color: var(--wabp-text-3);
+  font-size: 11.5px;
+}
+
+/* ---------- search palette ---------- */
+
+.people-palette {
+  position: fixed;
+  inset: 0;
+  z-index: 230;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 15vh 16px 0;
+  background: rgba(8, 9, 5, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.people-palette[hidden] { display: none; }
+
+.people-palette-card {
+  width: 520px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--wabp-surface);
+  backdrop-filter: blur(var(--wabp-blur)) saturate(var(--wabp-saturate));
+  -webkit-backdrop-filter: blur(var(--wabp-blur)) saturate(var(--wabp-saturate));
+  border: 1px solid var(--wabp-hairline-strong);
+  border-radius: var(--wabp-radius);
+  box-shadow: var(--wabp-shadow), var(--wabp-catch);
+  color: var(--wabp-text);
+  font-family: var(--wabp-font);
+}
+
+.people-palette-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--wabp-hairline);
+}
+
+.people-palette-glyph {
+  display: flex;
+  align-items: center;
+  color: var(--wabp-text-3);
+}
+
+#palette-input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  font-family: var(--wabp-font);
+  font-size: 14px;
+  color: var(--wabp-text);
+  background: var(--wabp-field);
+  border: 1px solid var(--wabp-hairline);
+  border-radius: 10px;
+  outline: none;
+}
+#palette-input::placeholder { color: var(--wabp-text-3); }
+#palette-input:focus {
+  border-color: var(--wabp-hairline-strong);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+}
+
+.people-palette-close {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--wabp-radius-pill);
+  border: 1px solid var(--wabp-hairline);
+  background: var(--wabp-surface-soft);
+  color: var(--wabp-text-2);
+  font-size: 16px;
+  line-height: 1;
+  box-shadow: var(--wabp-catch);
+}
+.people-palette-close:hover {
+  color: var(--wabp-text);
+  background: var(--wabp-surface-hover);
+}
+.people-palette-close:focus-visible {
+  outline: none;
+  border-color: var(--wabp-hairline-strong);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
+}
+
+.people-palette-results {
+  max-height: 50vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+}
+
+.pal-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--wabp-text);
+  font-family: var(--wabp-font);
+  text-align: left;
+  cursor: pointer;
+}
+.pal-row:hover { background: var(--wabp-surface-soft); }
+.pal-row.cursor {
+  background: var(--wabp-surface-raised);
+  border-color: var(--wabp-hairline-strong);
+}
+
+/* Sender dots in the palette carry the wabr-avatar marker (so render.js leaves
+   them alone); compound selectors keep the dot a dot despite render.css. */
+.pal-row .pal-dot {
+  width: 10px;
+  height: 10px;
+  min-width: 10px;
+  border-radius: 50%;
+  border: none;
+  display: block;
+  font-size: 0;
+  color: transparent;
+  letter-spacing: normal;
+  box-shadow: none;
+}
+
+.pal-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+}
+
+.pal-account {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border: 1px solid var(--wabp-hairline);
+  border-radius: var(--wabp-radius-pill);
+  background: var(--wabp-surface-soft);
+  color: var(--wabp-text-2);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.pal-unread {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--wabp-radius-pill);
+  background: #ffffff;
+  color: var(--wabp-on-light);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.people-palette-foot {
+  display: flex;
+  gap: 16px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--wabp-hairline);
+  color: var(--wabp-text-3);
+  font-size: 11.5px;
+}
+
+/* ---------- reply-as chips ---------- */
+
+#wab-pane-chips {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  z-index: 60;
+  font-family: var(--wabp-font);
+}
+
+.pane-chip {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--wabp-radius-pill);
+  background: var(--wabp-surface);
+  backdrop-filter: blur(var(--wabp-blur)) saturate(var(--wabp-saturate));
+  -webkit-backdrop-filter: blur(var(--wabp-blur)) saturate(var(--wabp-saturate));
+  border: 1px solid var(--wabp-hairline);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.30), var(--wabp-catch);
+  color: var(--wabp-text);
+  font-size: 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.pane-chip:hover { background: rgba(46, 46, 30, 0.55); }
+.pane-chip:focus-visible {
+  outline: none;
+  border-color: var(--wabp-hairline-strong);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.30), 0 0 0 3px rgba(255, 255, 255, 0.14);
+}
+.pane-chip.is-active {
+  border-color: rgba(255, 255, 255, 0.55);
+  background: rgba(46, 46, 30, 0.58);
+}
+
+.chip-dot {
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+  border-radius: 50%;
+}
+
+.chip-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.chip-acct {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--wabp-text-2);
+  font-size: 11px;
+}
+
+.pane-chip.is-empty { color: var(--wabp-text-2); }
+.chip-empty {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- scrollbars ----------
+   V12.1 T2: the people list gets a SOLID rail under the filter: a recessed
+   glass track always visible when the list overflows, thumb at
+   rgba(255,255,255,.14) (hover .24), minimum grab length 36px. The palette
+   keeps the quieter floating look. */
+
+.people-list::-webkit-scrollbar { width: 8px; }
+.people-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: var(--wabp-radius-pill);
+  border: 1px solid transparent;
+  background-clip: content-box;
+}
+.people-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: var(--wabp-radius-pill);
+  border: 2px solid transparent;
+  background-clip: content-box;
+  min-height: 36px;
+}
+.people-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
+  background-clip: content-box;
+  border: 2px solid transparent;
+}
+.people-list::-webkit-scrollbar-corner { background: transparent; }
+
+.people-palette-results::-webkit-scrollbar { width: 8px; }
+.people-palette-results::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: var(--wabp-radius-pill);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.people-palette-results::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
+  background-clip: content-box;
+  border: 2px solid transparent;
+}
+.people-palette-results::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- narrow window: icon rail mode (matches shell.css 64px rail) ---------- */
+
+@media (max-width: 1100px) {
+  .people-rail-host {
+    max-height: none;
+    min-height: 96px;
+  }
+  #wab-people-root > .people-rail {
+    width: 200px;
+  }
+  .people-head,
+  .people-filter {
+    display: none;
+  }
+  .people-list {
+    align-items: center;
+    padding: 8px 6px 4px;
+  }
+  .people-row {
+    width: auto;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 4px;
+    min-height: 0;
+  }
+  .people-row .people-name {
+    display: none;
+  }
+  /* Y3: no name showing, no line to sit under; typing dots stay (the badge
+     slot is still visible in icon mode). */
+  .people-row .people-progress {
+    display: none;
+  }
+  .people-note {
+    display: none;
+  }
+}
+
+/* ---------- v3.1 + V12 S3: avatars in the people rail ----------
+   Compound selectors (.people-row/.pal-row scope) outrank render.css's plain
+   .wabr-avatar, which our elements also carry as a skip-marker for render.js
+   decoration. Photo rows show the photo only: no initials, no colored ring
+   (the account color still lives in the row's left glow). Initials with a
+   color ring remain only when the person has no photo. */
+.people-row .people-avatar,
+.pal-row .people-avatar {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1.5px solid var(--wabr-ring, rgba(255, 255, 255, 0.42));
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: normal;
+}
+.people-row .people-avatar { margin-right: 2px; }
+
+.people-row .people-avatar.has-img,
+.pal-row .people-avatar.has-img {
+  border-color: transparent;
+  background-color: rgba(0, 0, 0, 0.25);
+  background-size: cover;
+  background-position: center;
+  font-size: 0;
+  color: transparent;
+}
+
+@keyframes wabp-spin { to { transform: rotate(360deg); } }
+.people-search-btn.spin svg { animation: wabp-spin 0.9s linear infinite; }
+
+/* ---------- V12 S3: rail fold (PR #9) ----------
+   people.js toggles body.wab-rail-folded; shell.css collapses the rail frame
+   to 64px. Here the people block becomes the avatar column: header, filter,
+   names and badges hide, avatars center. The block also stops sharing height
+   with the (hidden) sender section. */
+body.wab-rail-folded .people-head,
+body.wab-rail-folded .people-filter {
+  display: none;
+}
+body.wab-rail-folded .people-rail {
+  padding: 10px 6px 8px;
+  border-bottom: none;
+}
+body.wab-rail-folded .people-rail-host {
+  flex: 1 1 auto;
+  max-height: none;
+  min-height: 0;
+}
+body.wab-rail-folded #rail #people-rail {
+  flex: 1 1 auto;
+  max-height: none;
+}
+body.wab-rail-folded .people-list {
+  align-items: center;
+  padding: 4px 0 8px;
+}
+body.wab-rail-folded .people-row {
+  width: auto;
+  justify-content: center;
+  gap: 0;
+  padding: 6px 0;
+  min-height: 0;
+}
+body.wab-rail-folded .people-row .people-name,
+body.wab-rail-folded .people-row .people-unread {
+  display: none;
+}
+body.wab-rail-folded .people-note {
+  display: none;
+}
+body.wab-rail-folded #wab-people-root > .people-rail {
+  width: 64px;
+}
+
+/* ---------- V12.5 Y3: signals in the folded rail ----------
+   Folded there is room for the avatar only, so the dots and the progress
+   line hide and a typing person shows a pulsing account-color ring around
+   the avatar instead (1.2s, same clock as the other rail signals). */
+body.wab-rail-folded .people-row .people-typing { display: none; }
+body.wab-rail-folded .people-row .people-progress { display: none; }
+/* Maximized panes (render.css) also collapse the rail to icons; the badge
+   slot survives there so the dots stay, the nameless line does not. */
+body.wab-maximized .people-row .people-progress { display: none; }
+body.wab-rail-folded .people-row.is-typing .people-avatar {
+  animation: wabp-typing-ring 1.2s ease-in-out infinite;
+}
+@keyframes wabp-typing-ring {
+  0%, 100% { box-shadow: 0 0 0 0 var(--wabp-acct, rgba(255, 255, 255, 0.42)); }
+  50% { box-shadow: 0 0 0 4px var(--wabp-acct, rgba(255, 255, 255, 0.42)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.wab-rail-folded .people-row.is-typing .people-avatar {
+    animation: none;
+    box-shadow: 0 0 0 3px var(--wabp-acct, rgba(255, 255, 255, 0.42));
+  }
+}
+
+/* ---------- V14 T5: platform dots ----------
+   One class, every people surface: people.js rail rows and palette rows,
+   render.js takeover rows, pane picker account chips and the two connect
+   buttons. 4px, after the avatar, before the name; the -3px side margins
+   tuck it into the row gap so the name column barely moves. WhatsApp is
+   the base look (green), Telegram adds the blue modifier. Folded and
+   icon rails keep it: beside the avatar it is the only platform signal
+   there. The colors are the adapter spec's platform brands, not glass
+   tokens. */
+:root {
+  --wabp-plat-wa: #25D366;
+  --wabp-plat-tg: #229ED9;
+}
+
+.wabp-plat-dot {
+  flex: 0 0 4px;
+  width: 4px;
+  height: 4px;
+  min-width: 4px;
+  border-radius: 50%;
+  background: var(--wabp-plat-wa);
+  margin: 0 -3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.wabp-plat-dot.is-telegram { background: var(--wabp-plat-tg); }
+
+/* The pane picker's connect row (render.js buildPickerDom): two doors,
+   one per platform, sharing the picker chip look from render.css. The
+   compound selector beats the plain .rp-acc-chip regardless of load
+   order. */
+.rp-connect-row {
+  display: flex;
+  gap: 8px;
+  padding-top: 6px;
+}
+.rp-connect-row .rp-acc-chip {
+  flex: 1 1 0;
+  justify-content: center;
+}
+
+/* ---------- V14 T5: refresh button pulse while engines load ----------
+   render.js sets body.wab-loading during the first-load window and
+   engine reconnects (3+ people-poll misses). The rail's refresh button
+   answers with a soft ring pulse; the inset catch highlight rides along
+   in every frame. Look, size and click behavior otherwise unchanged. */
+@keyframes wabp-refresh-pulse {
+  0%, 100% {
+    box-shadow: var(--wabp-catch), 0 0 0 0 rgba(255, 255, 255, 0);
+    color: var(--wabp-text-2);
+  }
+  50% {
+    box-shadow: var(--wabp-catch), 0 0 0 4px rgba(255, 255, 255, 0.16);
+    color: var(--wabp-text);
+  }
+}
+body.wab-loading #people-refresh-btn {
+  animation: wabp-refresh-pulse 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  body.wab-loading #people-refresh-btn {
+    animation: none;
+    box-shadow: var(--wabp-catch), 0 0 0 3px rgba(255, 255, 255, 0.14);
+  }
+}
+
+/* ---------- V14 U2 + D4: user-grouped platform cards (sender accounts) ----
+   shell.js renderCards rebuilds #account-list as one .pucard per user:
+   bold name, a 24px logo row (WhatsApp + Telegram), and nothing else in the
+   default view (D4 law: the logo IS the card). One .pucard-sec per
+   CONNECTED platform, hidden until the logo is clicked, holds compact
+   .pucard-acc detail rows: color dot, name, link status, Rename, Re-link.
+   The old flat .account-card nodes no longer exist in the rail; the row
+   reuses the shell.css organ classes (.card-dot/.card-name/.card-status/
+   .relink-btn) so their looks carry over at the new depth. Connected logos
+   carry the brand glyph at full color plus a corner badge; unconnected
+   logos sit dashed at low ink and grow a plus on hover. The glyphs are the
+   same two marks the T4 watermarks and T5 pane badges use, kept local so
+   this file stands alone (SEAM: when U1's reusable logo builders land,
+   these two data URIs can defer to them). #25D366 and #229ED9 are platform
+   data like account colors, not glass tokens. */
+
+.pucard {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 9px 9px 10px;
+  border: 1px solid var(--wabp-hairline);
+  border-radius: var(--wabp-radius);
+  background: var(--wabp-surface-soft);
+  box-shadow: var(--wabp-catch);
+}
+
+.pucard-head { display: flex; align-items: baseline; min-width: 0; }
+.pucard-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--wabp-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pucard-logos {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The 24px platform logo button: connected (.is-on) solid with badge,
+   unconnected dashed at low ink with a plus on hover, expanded
+   (.is-expanded) lit while its section below is open. */
+.plat-logo {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--wabp-surface-soft);
+  border: 1px solid var(--wabp-hairline);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.plat-logo:hover { background: var(--wabp-surface-hover); }
+.plat-logo:focus-visible {
+  outline: 1px solid var(--wabp-hairline-strong);
+  outline-offset: 2px;
+}
+.plat-logo.is-on:hover,
+.plat-logo.is-expanded { border-color: var(--wabp-hairline-strong); }
+.plat-logo.is-expanded { background: var(--wabp-surface-hover); }
+
+.plat-glyph {
+  width: 16px;
+  height: 16px;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+}
+.plat-glyph-whatsapp {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cpath%20fill='%2325D366'%20fill-rule='evenodd'%20d='M16%204.6C10.1%204.6%205.2%209.3%205.2%2015.3%205.2%2017.6%205.9%2019.7%207.3%2021.4L5.7%2026.6%2011.1%2025.1C12.6%2025.9%2014.2%2026.4%2016%2026.4%2021.9%2026.4%2026.8%2021.5%2026.8%2015.5%2026.8%209.5%2021.9%204.6%2016%204.6ZM24.37%2016.23A8.4%208.4%200%200%200%2015.27%207.13L15.53%2010.12A5.4%205.4%200%200%201%2021.38%2015.97Z'/%3E%3C/svg%3E");
+}
+.plat-glyph-telegram {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cpath%20fill='%23229ED9'%20transform='rotate(-8%2016%2016)'%20d='M2.7%2028L30.7%2016%202.7%204%202.7%2013.3%2022.7%2016%202.7%2018.7Z'/%3E%3C/svg%3E");
+}
+
+/* Unconnected: dashed outline, ghosted glyph, plus mark on hover. */
+.plat-logo:not(.is-on) { border-style: dashed; }
+.plat-logo:not(.is-on) .plat-glyph {
+  opacity: 0.38;
+  filter: grayscale(0.6);
+}
+.plat-logo:not(.is-on):hover,
+.plat-logo:not(.is-on):focus-visible { border-color: var(--wabp-hairline-strong); }
+.plat-logo:not(.is-on):hover .plat-glyph,
+.plat-logo:not(.is-on):focus-visible .plat-glyph { opacity: 0.66; }
+.plat-logo:not(.is-on)::after {
+  content: "+";
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 13px;
+  height: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--wabp-font);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--wabp-on-light);
+  background: var(--wabp-text-2);
+  border-radius: 999px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.plat-logo:not(.is-on):hover::after,
+.plat-logo:not(.is-on):focus-visible::after { opacity: 1; }
+
+/* Connected corner badge: the platform's brand dot. */
+.plat-logo-badge {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--wabp-plat-wa);
+  border: 2px solid rgba(18, 20, 11, 0.85);
+}
+.plat-logo-badge.is-telegram { background: var(--wabp-plat-tg); }
+
+/* Unread rides the logo while the section is folded shut. The base
+   .unread-badge look comes from shell.css / glass.css; this only reseats
+   it, scoped to the logo so the card badges keep their old seat. */
+.plat-logo .unread-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  font-size: 9.5px;
+}
+
+/* The expansion under the logos: platform label + compact detail rows. */
+.pucard-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pucard-sec[hidden] { display: none; }
+.pucard-sec-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--wabp-text-3);
+  padding: 0 1px;
+}
+
+/* D4: the detail row (one per account inside a .pucard-sec). A control
+   strip, not a card: dot + name + status on the line, tool buttons after
+   (Rename always, Re-link when logged out), wrapping under on narrow
+   rails. Click assigns panes (shell.js onCardClick); .is-open/.is-selected
+   mark a row whose account already sits in a pane. */
+.pucard-acc {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 7px;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  min-width: 0;
+}
+.pucard-acc:hover { background: var(--wabp-surface-hover); }
+.pucard-acc:focus-visible {
+  outline: 1px solid var(--wabp-hairline-strong);
+  outline-offset: 1px;
+}
+.pucard-acc.is-open,
+.pucard-acc.is-selected {
+  border-color: var(--wabp-hairline-strong);
+  background: var(--wabp-surface-hover);
+}
+.pucard-acc-main {
+  flex: 1 1 120px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.pucard-acc-main .card-name {
+  font-size: 12.5px;
+  flex: 0 1 auto;
+}
+.pucard-acc-main .card-status {
+  flex: 0 0 auto;
+  margin-left: auto;
+  white-space: nowrap;
+}
+.pucard-acc-tools {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.acc-tool-btn {
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--wabp-text-2);
+  border: 1px solid var(--wabp-hairline);
+  border-radius: 6px;
+}
+.acc-tool-btn:hover {
+  color: var(--wabp-text);
+  border-color: var(--wabp-hairline-strong);
+  background: var(--wabp-surface-raised);
+}
+/* Re-link keeps its shell.css look, seated smaller inside the row. */
+.pucard-acc .relink-btn {
+  padding: 2px 7px;
+  font-size: 11px;
+}
+
+/* The add modal's platform chooser (shell.js injects it; picked = solid,
+   unpicked borrows the dashed unconnected look). */
+.plat-chooser { display: flex; gap: 8px; }
+.plat-choice {
+  width: auto;
+  min-width: 0;
+  gap: 6px;
+  padding: 6px 10px 6px 7px;
+}
+.plat-choice .plat-glyph { width: 18px; height: 18px; }
+.plat-choice-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--wabp-text);
+}
+.plat-choice.is-picked {
+  border-style: solid;
+  border-color: var(--wabp-hairline-strong);
+  background: var(--wabp-surface-raised);
+}
+.plat-choice.is-picked .plat-glyph { opacity: 1; filter: none; }
+.plat-choice.is-picked::after { content: none; }
+
+/* "For <user>" line under the add modal title. */
+.add-user-context {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--wabp-text-2);
+}
+
+
+/* U1/U2 conflict resolution: rail logo chips use U2's square look */
+.rail .plat-logo { border-radius: 8px; }
+.rail .plat-logo.is-unconnected { opacity: 0.38; }
+.rail .plat-logo.is-unconnected:hover { opacity: 0.72; }
+
+/* ---------- E3: sender account avatars (owner, 2026-11-22) ----------
+   The avatar circle: photo (has-img) or two initials on the account color.
+   Shared by the rail detail rows (.acc-avatar), the add modal preview
+   (.acc-avatar.is-preview) and the pane picker chips (.dock-avatar.has-img,
+   painted here because shell.css's .dock-avatar block predates E3). */
+.acc-avatar {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex: 0 0 auto;
+  background-size: cover;
+  background-position: center;
+}
+.acc-avatar:hover { box-shadow: 0 0 0 2px var(--wabp-hairline-strong); }
+.acc-avatar:focus-visible {
+  outline: 1px solid var(--wabp-hairline-strong);
+  outline-offset: 1px;
+}
+.acc-avatar.has-img { background-color: rgba(255,255,255,0.06); }
+
+/* The add modal's photo field: bigger preview beside the pick button. */
+.avatar-field { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.acc-avatar.is-preview {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  font-size: 12px;
+  cursor: default;
+}
+.avatar-pick-btn { padding: 5px 10px; font-size: 12px; }
+.avatar-field-hint {
+  flex: 1 1 140px;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--wabp-text-3);
+}
+
+/* The pane picker's account chips (render.js buildPickerDom) gain the photo. */
+.dock-avatar.has-img {
+  background-size: cover;
+  background-position: center;
+  background-color: rgba(255,255,255,0.06);
+  border-color: transparent;
+}

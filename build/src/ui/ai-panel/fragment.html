@@ -1,0 +1,58 @@
+<div id="ai-panel-root" hidden role="region" aria-label="AI sidekick">
+  <div class="ai-panel-card">
+
+    <header class="ai-panel-header">
+      <div class="ai-panel-heading">
+        <span class="ai-panel-title">AI sidekick</span>
+        <span id="ai-panel-context" class="ai-panel-context" title="">for this chat &middot; this account</span>
+      </div>
+      <button id="ai-panel-close" class="ai-panel-close" type="button" aria-label="Close sidekick">&times;</button>
+    </header>
+
+    <div class="ai-panel-body">
+
+      <div id="ai-panel-nokey" class="ai-panel-nokey" hidden>
+        <p class="ai-panel-nokey-text">Add your AI key in Settings to use the sidekick.</p>
+        <button id="ai-panel-open-settings" class="ai-panel-btn" type="button">Open settings</button>
+      </div>
+
+      <div id="ai-panel-main" class="ai-panel-main">
+        <div id="ai-panel-chips" class="ai-panel-chips">
+          <button class="ai-panel-chip" data-command="draft-reply" type="button">Draft reply</button>
+          <button class="ai-panel-chip" data-command="summarize" type="button">Summarize</button>
+          <button class="ai-panel-chip" data-command="reconnect" type="button">Reconnect</button>
+          <button class="ai-panel-chip" data-command="lookup" type="button">What we know</button>
+          <button class="ai-panel-chip" data-command="freeform" type="button">Freeform</button>
+        </div>
+
+        <div class="ai-panel-instruction">
+          <textarea id="ai-panel-instruction" rows="2" placeholder="Tone notes for the commands above, or your own instruction for Freeform"></textarea>
+          <button id="ai-panel-run" class="ai-panel-btn" type="button">Run</button>
+        </div>
+
+        <div id="ai-panel-hint" class="ai-panel-hint" hidden></div>
+        <div id="ai-panel-working" class="ai-panel-working" hidden>working...</div>
+        <div id="ai-panel-error" class="ai-panel-error" role="alert" hidden></div>
+
+        <div id="ai-panel-result" class="ai-panel-result" hidden>
+          <div class="ai-panel-result-meta">
+            <span id="ai-panel-wordcount">0 words</span>
+            <span class="ai-panel-result-actions">
+              <button id="ai-panel-copy" class="ai-panel-btn ai-panel-btn-small ai-panel-btn-quiet" type="button">Copy</button>
+              <button id="ai-panel-insert" class="ai-panel-btn ai-panel-btn-small" type="button">Insert into chat</button>
+            </span>
+          </div>
+          <pre id="ai-panel-text" class="ai-panel-text"></pre>
+        </div>
+      </div>
+
+    </div>
+
+    <footer class="ai-panel-footer">
+      <span id="ai-panel-usage">0 calls this session</span>
+      <span class="ai-panel-note">Drafts never send themselves</span>
+    </footer>
+
+    <div id="ai-panel-toast" class="ai-panel-toast" hidden></div>
+  </div>
+</div>

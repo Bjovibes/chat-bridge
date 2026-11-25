@@ -1,0 +1,63 @@
+<!-- v12.7 G1: the Activity fragment (window.WABActivity). Mirrors
+     build\src\ui\activity\fragment-activity.html.
+
+     Placement (integrator):
+     1. Paste this whole block inside #settings .settings-body, as a new
+        section between the Accounts section and the Debug panel root.
+     2. Add to index.html <head>, after debug/debug.css:
+        <link rel="stylesheet" href="activity/activity.css">
+     3. Add after the debug.js script tag:
+        <script src="activity/activity.js"></script>
+
+     The panel rides the Settings slide-over automatically: init() watches the
+     #settings hidden attribute and opens and closes with it. Manual control
+     stays available via WABActivity.open() and WABActivity.close(). -->
+
+<div id="activity-panel-root" hidden>
+  <section class="wab-activity-section">
+
+    <h3>Activity</h3>
+
+    <div id="wab-activity-note" class="wab-activity-note" hidden></div>
+
+    <div id="wab-activity-stats" class="wab-activity-stats" hidden>
+      <div class="wab-activity-tile">
+        <span id="wab-activity-today" class="wab-activity-tile-value">0</span>
+        <span class="wab-activity-tile-label">Today</span>
+      </div>
+      <div class="wab-activity-tile">
+        <span id="wab-activity-week" class="wab-activity-tile-value">0</span>
+        <span class="wab-activity-tile-label">This week</span>
+      </div>
+      <div class="wab-activity-tile">
+        <span id="wab-activity-total" class="wab-activity-tile-value">0</span>
+        <span class="wab-activity-tile-label">All time</span>
+      </div>
+      <div class="wab-activity-tile">
+        <span id="wab-activity-last" class="wab-activity-tile-value wab-activity-tile-time">Never</span>
+        <span class="wab-activity-tile-label">Last send</span>
+      </div>
+    </div>
+
+    <div id="wab-activity-empty" class="wab-activity-empty" hidden>
+      No sends yet. Your outgoing messages will be counted here.
+    </div>
+
+    <div id="wab-activity-accounts-block" class="wab-activity-block" hidden>
+      <div class="wab-activity-head">
+        <span class="wab-activity-label">By account</span>
+      </div>
+      <div id="wab-activity-accounts" class="wab-activity-bars"></div>
+    </div>
+
+    <div id="wab-activity-chats-block" class="wab-activity-block" hidden>
+      <div class="wab-activity-head wab-activity-head-chats">
+        <span class="wab-activity-label">Top chats</span>
+      </div>
+      <div id="wab-activity-chats" class="wab-activity-bars wab-activity-chats"></div>
+    </div>
+
+    <p class="wab-activity-legend">Counts and names only. Message text is never recorded.</p>
+
+  </section>
+</div>

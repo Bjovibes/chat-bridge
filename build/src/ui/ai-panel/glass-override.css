@@ -1,0 +1,197 @@
+/* Chat Bridge — AI sidekick, glass skin (loaded after ai-panel.css).
+   The panel is the nested glass pill inside the glass desk. Recolors only;
+   geometry, spacing and behavior stay as built.
+   v12.7 G2: recolors for the status line, setup card test result, live badge,
+   Brain toggle and drawer. Green stays reserved for live signals
+   (connected dot, live reading badge); save states stay neutral or red. */
+
+#ai-panel-root .ai-panel-card {
+  background: rgba(46, 46, 30, 0.40);
+  backdrop-filter: blur(30px) saturate(1.5);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 22px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.40), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+#ai-panel-root .ai-panel-title { color: #ffffff; }
+#ai-panel-root .ai-panel-context { color: rgba(255, 255, 255, 0.62); }
+
+/* B stacks opaque white layers inside the card; neutralize them so the glass shows. */
+#ai-panel-root .ai-panel-header,
+#ai-panel-root .ai-panel-body,
+#ai-panel-root .ai-panel-main,
+#ai-panel-root .ai-panel-instruction,
+#ai-panel-root .ai-panel-footer,
+#ai-panel-root .ai-panel-result-meta,
+#ai-panel-root .ai-panel-result-actions,
+#ai-panel-root .ai-panel-chips {
+  background: transparent;
+}
+
+#ai-panel-root .ai-panel-close {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  color: #ffffff;
+}
+#ai-panel-root .ai-panel-close:hover { background: rgba(255, 255, 255, 0.16); }
+
+/* v12.7 G2: Brain toggle, same pill family as the close button */
+
+#ai-panel-root .ai-panel-brain-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.85);
+}
+#ai-panel-root .ai-panel-brain-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #ffffff;
+}
+#ai-panel-root .ai-panel-brain-btn.is-active {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #26261a;
+}
+
+/* v12.7 G2: Brain drawer, a darker shelf between header and body */
+
+#ai-panel-root .ai-panel-drawer {
+  background: rgba(0, 0, 0, 0.22);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+#ai-panel-root .ai-panel-field-label { color: #ffffff; }
+#ai-panel-root .ai-panel-field-hint { color: rgba(255, 255, 255, 0.55); }
+
+#ai-panel-root .ai-panel-brain-tone,
+#ai-panel-root .ai-panel-brain-note {
+  background: rgba(0, 0, 0, 0.30);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 12px;
+  color: #ffffff;
+}
+#ai-panel-root .ai-panel-brain-tone:focus,
+#ai-panel-root .ai-panel-brain-note:focus {
+  border-color: rgba(255, 255, 255, 0.4);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+}
+
+#ai-panel-root .ai-panel-drawer-noperson { color: rgba(255, 255, 255, 0.55); }
+#ai-panel-root .ai-panel-drawer-foot { color: rgba(255, 255, 255, 0.48); }
+#ai-panel-root .ai-panel-brain-save { color: rgba(255, 255, 255, 0.62); }
+#ai-panel-root .ai-panel-brain-save.is-failed { color: #f0a899; }
+
+/* v12.7 G2: connection status line */
+
+#ai-panel-root .ai-panel-status {
+  color: rgba(255, 255, 255, 0.62);
+}
+#ai-panel-root .ai-panel-status:hover { color: #ffffff; }
+
+#ai-panel-root .ai-panel-dot {
+  background: rgba(255, 255, 255, 0.45);
+}
+#ai-panel-root .ai-panel-dot.is-ok {
+  background: #97d3a8;
+}
+#ai-panel-root .ai-panel-dot.is-bad {
+  background: #f0a899;
+}
+
+/* v12.7 G2: live reading badge (green = live signal) */
+
+#ai-panel-root .ai-panel-live { color: #97d3a8; }
+#ai-panel-root .ai-panel-live-dot { background: #97d3a8; }
+
+#ai-panel-root .ai-panel-chip {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.85);
+}
+#ai-panel-root .ai-panel-chip:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+#ai-panel-root .ai-panel-chip.is-active,
+#ai-panel-root .ai-panel-chip:active {
+  background: #ffffff;
+  color: #26261a;
+}
+
+#ai-panel-root .ai-panel-instruction textarea {
+  background: rgba(0, 0, 0, 0.30);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 12px;
+  color: #ffffff;
+}
+#ai-panel-root .ai-panel-instruction textarea:focus {
+  border-color: rgba(255, 255, 255, 0.4);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+}
+
+#ai-panel-root .ai-panel-btn {
+  background: #ffffff;
+  color: #26261a;
+  border-radius: 999px;
+  border: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.30);
+}
+#ai-panel-root .ai-panel-btn:hover { background: #f5f2e8; }
+
+#ai-panel-root .ai-panel-btn-small { box-shadow: none; }
+#ai-panel-root .ai-panel-btn-quiet {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+#ai-panel-root .ai-panel-btn-quiet:hover { background: rgba(255, 255, 255, 0.16); }
+
+#ai-panel-root .ai-panel-hint { color: rgba(255, 255, 255, 0.62); }
+#ai-panel-root .ai-panel-working { color: rgba(255, 255, 255, 0.62); }
+
+#ai-panel-root .ai-panel-error {
+  background: rgba(240, 168, 153, 0.12);
+  border: 1px solid rgba(240, 168, 153, 0.45);
+  border-radius: 12px;
+  color: #f0a899;
+}
+
+#ai-panel-root .ai-panel-result {
+  background: rgba(0, 0, 0, 0.26);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  border-radius: 14px;
+}
+#ai-panel-root .ai-panel-wordcount { color: rgba(255, 255, 255, 0.55); }
+#ai-panel-root .ai-panel-text { color: #ffffff; }
+
+#ai-panel-root .ai-panel-footer {
+  color: rgba(255, 255, 255, 0.55);
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+#ai-panel-root .ai-panel-note { color: rgba(255, 255, 255, 0.42); }
+
+#ai-panel-root .ai-panel-nokey {
+  background: rgba(0, 0, 0, 0.24);
+  border: 1px dashed rgba(255, 255, 255, 0.30);
+  border-radius: 14px;
+}
+#ai-panel-root .ai-panel-nokey-text { color: rgba(255, 255, 255, 0.78); }
+
+/* v12.7 G2: setup card test result (green only for a live OK connection) */
+
+#ai-panel-root .ai-panel-nokey-test-result { color: rgba(255, 255, 255, 0.62); }
+#ai-panel-root .ai-panel-nokey-test-result.is-ok { color: #97d3a8; }
+#ai-panel-root .ai-panel-nokey-test-result.is-bad { color: #f0a899; }
+
+#ai-panel-root .ai-panel-toast {
+  background: #ffffff;
+  color: #26261a;
+  border-radius: 999px;
+}

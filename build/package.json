@@ -1,0 +1,15 @@
+{
+  "name": "wa-bridge",
+  "productName": "Chat Bridge",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Chat Bridge: one operator desk for official WhatsApp and Telegram web sessions, with consent blindfolds and an AI sidekick. Drafts never send themselves.",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "electron . --smoke --mock"
+  },
+  "devDependencies": {
+    "electron": "45.4.1"
+  }
+}

@@ -1,0 +1,952 @@
+/* Chat Bridge shell.css, builder C, evolved V12.1 T2 (rail height law). AI Partners tokens, light theme only. */
+
+:root {
+  --paper: #F6F8FB;
+  --card: #FFFFFF;
+  --ink: #0F172A;
+  --tile: #426CA8;
+  --tile-dark: #35578a;
+  --muted: #465570;
+  --hairline: #D9E1EC;
+  --slot-tint: #E8EEF7;
+  --ok: #2F855A;
+  --amber: #B7791F;
+  --danger: #9B2C2C;
+  --radius: 12px;
+  --radius-s: 8px;
+  --rail-w: 240px;
+  --toolbar-h: 48px;
+  --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+button {
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--ink);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+input, select {
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-s);
+  padding: 7px 10px;
+  width: 100%;
+  outline: none;
+}
+
+input:focus, select:focus {
+  border-color: var(--tile);
+}
+
+/* ---------- boot error ---------- */
+
+.boot-error {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+  z-index: 300;
+}
+
+.boot-error[hidden] { display: none; }
+
+.boot-error-card {
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  max-width: 420px;
+  text-align: center;
+}
+
+.boot-error-card h1 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+.boot-error-card p { color: var(--muted); }
+
+/* ---------- shell frame ---------- */
+
+.shell {
+  display: flex;
+  height: 100vh;
+}
+
+.shell[hidden] { display: none; }
+
+/* ---------- rail ---------- */
+
+.rail {
+  width: var(--rail-w);
+  min-width: var(--rail-w);
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border-right: 1px solid var(--hairline);
+  transition: width 200ms ease, min-width 200ms ease; /* V12 S3: fold */
+}
+
+/* V12.1 T2: glass.css sets #rail { gap: 8px }; 6px buys two extra people rows
+   at a 900px window. Class+id outranks the id rule regardless of load order. */
+.shell #rail { gap: 6px; }
+
+/* ---------- V12 S3: rail top with fold toggle (PR #9) ---------- */
+
+.rail-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rail-brand {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rail-fold-btn {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  margin-top: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--g-hairline, rgba(255, 255, 255, 0.22));
+  background: var(--g-glass-soft, rgba(255, 255, 255, 0.07));
+  color: var(--g-text-2, rgba(255, 255, 255, 0.74));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+.rail-fold-btn svg {
+  transition: transform 200ms ease;
+}
+.rail-fold-btn:hover {
+  color: var(--g-text, #ffffff);
+  background: var(--g-glass-hover, rgba(255, 255, 255, 0.12));
+}
+.rail-fold-btn:focus-visible {
+  outline: none;
+  border-color: var(--g-hairline-strong, rgba(255, 255, 255, 0.34));
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
+}
+.rail-fold-btn.is-folded svg {
+  transform: rotate(180deg);
+}
+
+.wordmark {
+  padding: 12px 16px 2px; /* V12.1 T2: 16 -> 12, one more people row */
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.rail-sub {
+  padding: 0 16px 10px; /* V12.1 T2: 12 -> 10 */
+  font-size: 11.5px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--hairline);
+}
+
+/* ---------- V12 S3: folded rail (64px avatar column) ----------
+   people.js toggles body.wab-rail-folded. Folded hides the sender accounts
+   section, the dock, text labels and the sub line; the wordmark collapses to
+   a WA glyph and people.css turns the people block into the avatar column. */
+body.wab-rail-folded .rail {
+  width: 64px;
+  min-width: 64px;
+  overflow: hidden;
+}
+body.wab-rail-folded .rail-top {
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 0 0;
+}
+body.wab-rail-folded .rail-fold-btn {
+  margin-top: 0;
+}
+body.wab-rail-folded .rail-brand {
+  flex: 0 0 auto;
+  width: 100%;
+}
+body.wab-rail-folded .wordmark {
+  padding: 2px 0 8px;
+  text-align: center;
+  font-size: 0;
+}
+body.wab-rail-folded .wordmark::before {
+  content: "WA";
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--g-text, #ffffff);
+}
+body.wab-rail-folded .rail-sub,
+body.wab-rail-folded .rail-sep,
+body.wab-rail-folded .rail-label,
+body.wab-rail-folded .account-list,
+body.wab-rail-folded .rail-foot {
+  display: none;
+}
+
+.account-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 10px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rail-foot {
+  padding: 10px;
+  border-top: 1px solid var(--hairline);
+}
+
+.add-account-btn {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px dashed var(--hairline);
+  border-radius: var(--radius-s);
+  color: var(--tile);
+  font-weight: 600;
+  text-align: center;
+}
+
+.add-account-btn:hover { border-color: var(--tile); background: var(--paper); }
+
+/* ---------- account cards ---------- */
+
+.account-card {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  position: relative;
+  min-width: 0;
+}
+
+.account-card:hover { background: var(--paper); }
+.account-card.is-open { background: var(--slot-tint); }
+.account-card.is-selected { border-color: var(--tile); background: var(--slot-tint); }
+
+.card-dot {
+  width: 10px;
+  height: 10px;
+  min-width: 10px;
+  border-radius: 50%;
+}
+
+.card-main { flex: 1; min-width: 0; }
+
+.card-name {
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-name-input {
+  width: 100%;
+  padding: 2px 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.card-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  min-width: 7px;
+  border-radius: 50%;
+  background: #A8B4C6;
+}
+
+.card-status.st-linking .status-dot { background: var(--amber); }
+.card-status.st-linking .status-label { color: var(--amber); }
+.card-status.st-linked .status-dot { background: var(--ok); }
+.card-status.st-logged-out .status-dot { background: #A8B4C6; }
+
+.unread-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--tile);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.relink-btn {
+  padding: 3px 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--tile);
+  border: 1px solid var(--tile);
+  border-radius: 6px;
+}
+
+.relink-btn:hover { background: var(--tile); color: #fff; }
+
+/* ---------- main column, toolbar ---------- */
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.toolbar {
+  height: var(--toolbar-h);
+  min-height: var(--toolbar-h);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--card);
+}
+
+.toolbar-spacer { flex: 1; }
+
+.layout-switch {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-s);
+}
+
+.mode-btn {
+  width: 32px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--muted);
+}
+
+.mode-btn:hover { color: var(--ink); background: var(--paper); }
+.mode-btn.active { color: #fff; background: var(--tile); }
+
+.toolbar-btn {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius-s);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.toolbar-btn:hover { color: var(--ink); background: var(--paper); }
+
+/* ---------- slot area and layouts ---------- */
+
+.slot-area {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.slot {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--slot-tint);
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.slot::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: transparent;
+}
+
+.slot[data-color]::before { background: var(--slot-color, transparent); }
+
+.slot-name {
+  position: absolute;
+  top: 11px;
+  left: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.75);
+  padding: 2px 8px;
+  border-radius: 6px;
+  max-width: calc(100% - 24px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* per-mode grids */
+body[data-layout="single"] .slot-area { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+body[data-layout="split2"] .slot-area { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+body[data-layout="split3"] .slot-area { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr; }
+body[data-layout="grid5"] .slot-area { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; }
+body[data-layout="tabs"] .slot-area { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+
+/* slot visibility per mode */
+body[data-layout="single"] .slot:not([data-slot="0"]),
+body[data-layout="split2"] .slot:not([data-slot="0"]):not([data-slot="1"]),
+body[data-layout="split3"] .slot:not([data-slot="0"]):not([data-slot="1"]):not([data-slot="2"]),
+body[data-layout="tabs"]   .slot:not([data-slot="0"]) { display: none; }
+
+body[data-layout="tabs"] .slot[data-slot="0"] { grid-row: 2; }
+
+/* ---------- tab strip ---------- */
+
+.tabstrip {
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  min-height: 34px;
+  padding: 2px 0;
+}
+
+.tabstrip[hidden] { display: none; }
+
+.tab-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: var(--card);
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.tab-chip:hover { color: var(--ink); }
+.tab-chip.active { border-color: var(--tile); color: var(--tile); background: var(--slot-tint); }
+
+.tab-chip .chip-dot {
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+  border-radius: 50%;
+}
+
+.tab-hint {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 0 4px;
+}
+
+/* ---------- empty state ---------- */
+
+.empty-state {
+  grid-column: 1 / -1;
+  grid-row: 1 / span 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed var(--hairline);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+
+.empty-state[hidden] { display: none; }
+.empty-state h2 { font-size: 15px; color: var(--ink); }
+.empty-state p { max-width: 340px; }
+
+/* ---------- buttons ---------- */
+
+.btn-primary {
+  background: var(--tile);
+  color: #fff;
+  font-weight: 600;
+  padding: 7px 16px;
+  border-radius: var(--radius-s);
+}
+
+.btn-primary:hover { background: var(--tile-dark); }
+.btn-primary:disabled { background: #A8B4C6; cursor: default; }
+
+.btn-ghost {
+  border: 1px solid var(--hairline);
+  color: var(--muted);
+  font-weight: 600;
+  padding: 7px 16px;
+  border-radius: var(--radius-s);
+  background: var(--card);
+}
+
+.btn-ghost:hover { color: var(--ink); border-color: var(--muted); }
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+  font-weight: 600;
+  padding: 7px 16px;
+  border-radius: var(--radius-s);
+}
+
+.btn-danger:hover { background: #7a2020; }
+
+/* ---------- overlays and modals ---------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.overlay[hidden] { display: none; }
+
+.modal {
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  padding: 22px 24px;
+  width: 400px;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.modal-narrow { width: 340px; }
+
+.modal h2 { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+
+.consent {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--slot-tint);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-s);
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+
+.remove-copy { color: var(--muted); margin-bottom: 16px; }
+
+.field { display: block; margin-bottom: 12px; }
+
+.field-label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 4px;
+  text-transform: none;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* ---------- swatches ---------- */
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.swatch.selected { border-color: var(--ink); }
+.swatch:hover { border-color: var(--muted); }
+
+/* ---------- context menu ---------- */
+
+.ctx-menu {
+  position: fixed;
+  z-index: 250;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-s);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.14);
+  padding: 6px;
+  min-width: 190px;
+}
+
+.ctx-menu[hidden] { display: none; }
+
+.ctx-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.ctx-item:hover { background: var(--paper); }
+.ctx-danger { color: var(--danger); font-weight: 600; }
+.ctx-danger:hover { background: #FBF0F0; }
+
+.ctx-colors {
+  padding: 7px 10px 5px;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  margin: 4px 0;
+}
+
+.ctx-label {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+/* ---------- settings slide-over ---------- */
+
+.settings {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 380px;
+  max-width: calc(100vw - 24px);
+  background: var(--card);
+  border-left: 1px solid var(--hairline);
+  box-shadow: -8px 0 24px rgba(15, 23, 42, 0.08);
+  z-index: 180;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings[hidden] { display: none; }
+
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.settings-head h2 { font-size: 15px; font-weight: 700; }
+
+.settings-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px 24px;
+}
+
+.settings section { margin-bottom: 26px; }
+.settings h3 {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+}
+
+.test-result {
+  font-size: 12.5px;
+  border-radius: var(--radius-s);
+  padding: 8px 10px;
+  margin-top: 4px;
+}
+
+.test-result.ok { color: var(--ok); background: #EDF7F1; }
+.test-result.fail { color: var(--danger); background: #FBF0F0; }
+.test-result[hidden] { display: none; }
+
+.privacy-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin: -4px 0 10px;
+}
+
+.privacy-chats {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-s);
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.privacy-chats .chat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.privacy-chats .chat-row:hover { background: var(--paper); }
+.privacy-chats input[type="checkbox"], .privacy-chats input[type="radio"] { width: auto; }
+
+.privacy-chats .chat-unread {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tile);
+}
+
+.chat-load-note {
+  padding: 10px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.about p { color: var(--muted); margin-bottom: 4px; }
+.about p:first-of-type { color: var(--ink); font-weight: 600; }
+
+/* ---------- toasts ---------- */
+
+.toasts {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 280;
+  max-width: 360px;
+}
+
+.toast {
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-left: 3px solid var(--tile);
+  border-radius: var(--radius-s);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1);
+  padding: 10px 14px;
+  font-size: 13px;
+  animation: toast-in 160ms ease-out;
+}
+
+.toast.t-restricted { border-left-color: var(--amber); }
+.toast.t-info { border-left-color: var(--tile); }
+.toast.t-allowed { border-left-color: var(--ok); }
+
+.toast.out {
+  opacity: 0;
+  transition: opacity 240ms ease-in;
+}
+
+@keyframes toast-in {
+  from { transform: translateY(6px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* ---------- narrow window: icon rail ---------- */
+
+@media (max-width: 1100px) {
+  :root { --rail-w: 64px; }
+
+  .wordmark {
+    padding: 14px 8px 2px;
+    text-align: center;
+    font-size: 0;
+  }
+
+  .wordmark::before {
+    content: "WA";
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .rail-sub { display: none; }
+
+  .rail-top {
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 0 0;
+  }
+
+  .rail-fold-btn { margin-top: 0; }
+
+  .rail-brand { flex: 0 0 auto; width: 100%; }
+
+  .account-list { padding: 8px 6px 4px; align-items: center; }
+
+  .account-card { flex-direction: column; gap: 4px; padding: 8px 4px; width: 52px; }
+
+  .card-main { width: 100%; }
+
+  .card-name, .card-status .status-label {
+    display: none;
+  }
+
+  .card-status { justify-content: center; }
+
+  .unread-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    min-width: 15px;
+    height: 15px;
+    font-size: 10px;
+    padding: 0 3px;
+  }
+
+  .relink-btn { font-size: 10px; padding: 2px 5px; }
+
+  .rail-foot { padding: 8px 6px; }
+
+  .add-account-btn { font-size: 0; padding: 8px 0; }
+  .add-account-btn::before { content: "+"; font-size: 16px; font-weight: 700; }
+}
+
+/* ---------- v2.1 rail: people / separator / sender accounts / dock (owner spec 2026-11-21) ---------- */
+
+.rail-sep {
+  height: 1px;
+  background: var(--hair, rgba(255,255,255,0.09));
+  margin: 10px 14px 8px;
+  flex: 0 0 auto;
+}
+.rail-label {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+  padding: 0 16px 6px;
+  flex: 0 0 auto;
+}
+
+/* V12.1 T2 height law: glass.css ships #account-list { flex: 1 1 auto }, which
+   let the sender section fight the people rail for space. This id+id rule
+   outranks it: accounts sit compact (content height, capped) with their own
+   thin scroll, and every spare pixel goes to the people list above. */
+#rail #account-list {
+  flex: 0 0 auto;
+  min-height: 96px;
+  max-height: 24%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+#account-list::-webkit-scrollbar { width: 6px; }
+#account-list::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.14);
+  border-radius: 999px;
+}
+#account-list::-webkit-scrollbar-track { background: transparent; }
+
+/* V12.1 T2: the dock stays compact and scrolls itself if an owner links many
+   accounts, so it can never eat the people list's nine rows. */
+.rail-foot {
+  flex: 0 0 auto;
+  max-height: 30%;
+  overflow-y: auto;
+  padding: 10px 12px 12px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+
+.account-dock { display: flex; flex-direction: column; gap: 6px; }
+.dock-hint { font-size: 11px; color: rgba(255,255,255,0.38); padding: 4px 6px; }
+/* Below ~940px of window height the dock hint yields its row to the list. */
+@media (max-height: 940px) {
+  .dock-hint { display: none; }
+}
+.dock-chip {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; padding: 7px 9px; border-radius: 10px;
+  background: rgba(255,255,255,0.04); border: 1px solid transparent;
+  color: rgba(255,255,255,0.85); cursor: pointer; text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+}
+.dock-chip:hover { background: rgba(255,255,255,0.09); }
+.dock-chip.is-active { border-color: rgba(255,255,255,0.28); background: rgba(255,255,255,0.10); }
+.dock-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10.5px; font-weight: 700; color: #fff;
+  background: rgba(255,255,255,0.10); border: 2px solid #426CA8; flex: 0 0 auto;
+}
+.dock-name { font-size: 13px; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- screen switcher (single-mode swipe, owner spec 2026-11-21) ---------- */
+
+.screen-switcher {
+  position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(18,20,24,0.92); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px; padding: 6px 10px; z-index: 400;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+}
+.ss-arrow {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.8);
+  border: none; font-size: 16px; line-height: 1; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.ss-arrow:hover { background: rgba(255,255,255,0.14); }
+.ss-dots { display: flex; align-items: center; gap: 8px; }
+.ss-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  border: none; cursor: pointer; padding: 0;
+  opacity: 0.45; transition: opacity 0.15s, transform 0.15s;
+}
+.ss-dot:hover { opacity: 0.8; }
+.ss-dot.on { opacity: 1; transform: scale(1.35); box-shadow: 0 0 0 3px rgba(255,255,255,0.15); }

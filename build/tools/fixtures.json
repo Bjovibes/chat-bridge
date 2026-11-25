@@ -1,0 +1,33 @@
+{
+  "_comment": "Chat Bridge v3 mock-mode fixtures (owner D, contract V3). Used with --mock so the renderer is fully testable phone-free. people mirrors the exact eng:people result shape, messages mirrors the exact eng:messages result shape. ts values are epoch seconds, same unit the engine getMessages returns. Only fix_chat_marc carries messages; other fixture chats return empty lists so the renderer exercises the empty state. Echo-send semantics: eng:send in mock mode resolves {ok: true, error: null} after 800 ms and appends the sent text to that chat as a new fromMe message (id fix_echo_<epoch>, ts = send time in epoch seconds, kind text), so the round trip renders without a phone. Zero network, zero real WhatsApp.",
+  "accounts": [
+    { "id": "wa_ea11aa01", "name": "Alice", "color": "#426CA8" },
+    { "id": "wa_eb22bb02", "name": "Bob", "color": "#C2743C" }
+  ],
+  "people": [
+    { "title": "Marc Deckers", "unread": 2, "accountId": "wa_ea11aa01", "accountName": "Alice", "accountColor": "#426CA8", "chatId": "fix_chat_marc" },
+    { "title": "Mama", "unread": 1, "accountId": "wa_ea11aa01", "accountName": "Alice", "accountColor": "#426CA8", "chatId": "fix_chat_mama" },
+    { "title": "Elif Demir", "unread": 3, "accountId": "wa_ea11aa01", "accountName": "Alice", "accountColor": "#426CA8", "chatId": "fix_chat_elif" },
+    { "title": "Priya Nair", "unread": 0, "accountId": "wa_ea11aa01", "accountName": "Alice", "accountColor": "#426CA8", "chatId": "fix_chat_priya" },
+    { "title": "Tom Willems", "unread": 0, "accountId": "wa_ea11aa01", "accountName": "Alice", "accountColor": "#426CA8", "chatId": "fix_chat_tom" },
+    { "title": "Sofie", "unread": 0, "accountId": "wa_eb22bb02", "accountName": "Bob", "accountColor": "#C2743C", "chatId": "fix_chat_sofie" },
+    { "title": "Daan Janssens", "unread": 1, "accountId": "wa_eb22bb02", "accountName": "Bob", "accountColor": "#C2743C", "chatId": "fix_chat_daan" },
+    { "title": "Lena Kowalski", "unread": 0, "accountId": "wa_eb22bb02", "accountName": "Bob", "accountColor": "#C2743C", "chatId": "fix_chat_lena" }
+  ],
+  "messages": {
+    "fix_chat_marc": [
+      { "id": "fix_msg_marc_01", "fromMe": false, "text": "Messages and calls are end-to-end encrypted. Only people in this chat can read them.", "ts": 1796048000, "kind": "system" },
+      { "id": "fix_msg_marc_02", "fromMe": false, "text": "Morning! Are we still on for Thursday?", "ts": 1796048240, "kind": "text" },
+      { "id": "fix_msg_marc_03", "fromMe": true, "text": "Morning. Yes, 10:30 at the usual place.", "ts": 1796048360, "kind": "text" },
+      { "id": "fix_msg_marc_04", "fromMe": false, "text": "Perfect. I will bring the draft.", "ts": 1796048420, "kind": "text" },
+      { "id": "fix_msg_marc_05", "fromMe": false, "text": "", "ts": 1796052900, "kind": "media-placeholder" },
+      { "id": "fix_msg_marc_06", "fromMe": true, "text": "Got it, that is exactly the layout I meant.", "ts": 1796052960, "kind": "text" },
+      { "id": "fix_msg_marc_07", "fromMe": false, "text": "Can you check the numbers before we meet?", "ts": 1796053020, "kind": "text" },
+      { "id": "fix_msg_marc_08", "fromMe": true, "text": "Will do. I will send notes tonight.", "ts": 1796053200, "kind": "text" },
+      { "id": "fix_msg_marc_09", "fromMe": false, "text": "Thanks!", "ts": 1796053260, "kind": "text" },
+      { "id": "fix_msg_marc_10", "fromMe": true, "text": "One more thing: can you forward the invoice from October?", "ts": 1796058120, "kind": "text" },
+      { "id": "fix_msg_marc_11", "fromMe": false, "text": "Yes, sending it after lunch.", "ts": 1796058300, "kind": "text" },
+      { "id": "fix_msg_marc_12", "fromMe": false, "text": "By the way, dinner at Mama's on Sunday. She asked about you.", "ts": 1796064000, "kind": "text" }
+    ]
+  }
+}

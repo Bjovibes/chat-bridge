@@ -1,0 +1,1984 @@
+/* Chat Bridge render.css, builder E (v3 engine rooms). The Glass Desk tokens
+   exactly (glass.css / people.css families): warm dark ambient from body,
+   translucent surfaces with blur 30 saturate 1.5, hairlines, white pills,
+   radius 8 bubbles / 12 inputs / 22 pane / 999 pills. No purple-blue theme,
+   no emoji, light on dark only.
+   All sizes inside a pane are em: the pane root carries the zoom font-size
+   (rem would resolve against the html root and would not scale per pane).
+
+   V12 S4 additions (owner spec 2026-11-21): account-color edge glow with a
+   bright reply flare, photo-only header faces, grid4/grid6 slot geometry.
+
+   V12.1 T3 additions (the owner ruling 2026-11-21): ONE compose bar. Panes have
+   no compose footer in the DOM at all (the old footer rules are gone, not
+   hidden); message beds carry a bottom inset so bubbles stay clear of the
+   hovering central bar. The central bar shows the ROUTE: an account-color
+   strip on its left edge and a 300ms pulse when the routed pane changes.
+
+   V12.2 U1 additions (owner spec 2026-11-21): the close X at every pane
+   header's top-left (22px hit area at 1x, hairline glass circle, hover
+   brightens); virtual screens in single and tabs.
+
+   V12.3 W1 additions (the owner ruling 2026-11-21): the bottom switcher is dead
+   (shell.js removes its DOM), so the central bar keeps its fixed bottom
+   position in every mode. The ONLY switcher UI is the top dot row (.rsdots,
+   built by render.js inside #render-root): just dots pinned to the top
+   center of the pane area in single and tabs, hollow when a screen is empty,
+   filled with the screen conversation's account color when occupied, active
+   screen larger and ringed, and a steady 1.2s blink in the account color
+   while an unmounted screen holds an unseen reply.
+
+   V12.5 Y2 additions (owner spec 2026-11-21): the PROGRESSION RAIL under
+   every pane header (.rprog + .rprog-bar: 2px, full pane width, riding the
+   header hairline, above the message bed, below the screen-dots row). An
+   indeterminate account-color shimmer runs while a conversation loads
+   (messages fetch, open resolve, engine pre-open), a left-anchored
+   determinate-ish pulse runs while the central bar sends, success plays a
+   300ms bright sweep then hides, and a failed load or send holds a steady
+   dim red until the next action. render.js swaps classes only; every
+   visual is CSS animation. Plus WhatsApp-style TYPING DOTS in the header
+   (.rp-typing: three 8px account-color dots on a 1.2s staggered bounce)
+   that replace the account-name text while the eng:on-typing push lists
+   the mounted pane's person.
+
+   V12.4 X2 additions (the owner live complaints, 2026-11-21), rebased on Y2:
+   the central bar centers over the CONVERSATION AREA (#render-root, inset
+   0 of #slot-area, right of the rail), not the raw window. render.js
+   (positionComposeBar) measures that box on every pane sync and writes
+   left in px plus a maxWidth that respects the area; the left:50% on
+   .gcompose is only the pre-measure boot default. This covers every rail
+   width (240 unfolded, 64 folded, 56 maximized, the narrow-window media
+   query) and maximize, fold, layout switches and window resize without
+   any --rail-w guessing.
+
+   V12.6 Z2 additions (integrator live probe 2026-11-21): the loading
+   visibility law. .rpane.is-empty now means THE PICKER STATE ONLY (render.js
+   syncEmptyClass: no person AND pane state 'empty'), so a loading, error or
+   nothread pane always carries its glass surface, its header and its rail:
+   the old "is-empty = no person" reading painted resolve-loadings and
+   errors on a transparent, rail-less pane, which was the owner's "I don't see
+   the loading state fully" live complaint. The rail display rule below is
+   unchanged (an is-empty pane shows the picker, never a rail), but is-empty
+   itself now clears the moment real work starts. A failed pane also turns
+   its header hairline dim red (.rpane.is-error .rpane-head) so the failure
+   is visible from across the desk, not only inside the state box.
+
+   V12.7 F2 additions (the owner ask 2026-11-21): MEDIA AND LINKS INLINE, scoped
+   to message rendering. Links inside text bubbles underline in the account
+   color on hover and break anywhere; a sole-URL message carries a compact
+   link chip under the bubble (domain + truncated path). Media placeholder
+   bubbles become 4/3 glass frames (max 260px wide) that swap to the real
+   media: image (contain, click opens the lightbox), video or gif (muted
+   autoplay loop), sticker (bare img max 180px, no bubble chrome), audio
+   (a quiet voice-note chip). Failure shows "Media unavailable on the desk"
+   with a retry arrow. The lightbox is a fixed overlay: click-away closes,
+   Esc closes. Glass tokens only; every icon is inline SVG, no emoji, no
+   em-dashes, light on dark. */
+
+/* The pane layer needs a positioned ancestor and must not take a grid cell. */
+#slot-area { position: relative; }
+
+#render-root {
+  --wabr-text: #ffffff;
+  --wabr-text-2: rgba(255, 255, 255, 0.74);
+  --wabr-text-3: rgba(255, 255, 255, 0.42);
+  --wabr-hairline: rgba(255, 255, 255, 0.22);
+  --wabr-hairline-strong: rgba(255, 255, 255, 0.34);
+  --wabr-glass: rgba(46, 46, 30, 0.40);
+  --wabr-soft: rgba(255, 255, 255, 0.07);
+  --wabr-hover: rgba(255, 255, 255, 0.12);
+  --wabr-bed: rgba(30, 32, 20, 0.55);
+  --wabr-field: rgba(0, 0, 0, 0.30);
+  --wabr-on-light: #26261a;
+  --wabr-red: #f0a899;
+  --wabr-blur: 30px;
+  --wabr-saturate: 1.5;
+  --wabr-shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+  --wabr-catch: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  --wabr-font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  font-family: var(--wabr-font);
+  color: var(--wabr-text);
+}
+
+#render-root, #render-root * { box-sizing: border-box; }
+
+/* ---------- pane frame ---------- */
+
+.rpane {
+  position: absolute;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  font-size: 15px; /* zoom sets this inline; 15px is the 1x base */
+  background: var(--wabr-glass);
+  backdrop-filter: blur(var(--wabr-blur)) saturate(var(--wabr-saturate));
+  -webkit-backdrop-filter: blur(var(--wabr-blur)) saturate(var(--wabr-saturate));
+  border: 1px solid var(--wabr-hairline);
+  border-radius: 22px;
+  box-shadow: var(--wabr-shadow), var(--wabr-catch);
+  overflow: hidden;
+  z-index: 1;
+}
+
+.rpane.is-active {
+  border-color: var(--wabr-hairline-strong);
+}
+
+/* The central bar's chip can focus a pane programmatically (tabindex -1);
+   the route flash below is the visual, so no focus ring is needed here. */
+.rpane:focus { outline: none; }
+
+.rpane.is-max {
+  left: 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 5;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5), var(--wabr-catch);
+}
+
+/* Empty pane: no surface, the glass slot card behind is the empty state.
+   V12.6 Z2: is-empty is the PICKER state only (render.js syncEmptyClass),
+   never "no person"; loading, error and nothread panes keep this surface,
+   their header and their rail, so the loading state is fully visible. */
+.rpane.is-empty {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.rpane.is-empty .rpane-head,
+.rpane.is-empty .rpane-msgs { display: none; }
+
+/* ---------- v12 S4: account-color edge glow + reply flare ---------- */
+
+/* Dim glow on every occupied pane: a 1px ring plus an 18px halo in the
+   account's own color. --wabr-glow-rgb is an "r,g,b" triplet set inline by
+   render.js from the account color, so the alphas below stay CSS-owned.
+   Empty panes keep no glow (no account, no conversation, no signal). */
+.rpane:not(.is-empty) {
+  box-shadow:
+    var(--wabr-shadow), var(--wabr-catch),
+    0 0 0 1px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.34),
+    0 0 18px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.25);
+}
+
+.rpane.is-max:not(.is-empty) {
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.5), var(--wabr-catch),
+    0 0 0 1px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.34),
+    0 0 18px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.25);
+}
+
+/* A new incoming reply flares the same glow bright, then settles back to
+   dim over 1.6s. render.js adds .is-reply and removes it after the run;
+   the class outlives the animation slightly so the settle is never cut. */
+.rpane.is-reply:not(.is-empty) {
+  animation: wabr-reply-glow 1.6s ease-out forwards;
+}
+
+.rpane.is-max.is-reply:not(.is-empty) {
+  animation-name: wabr-reply-glow-max;
+}
+
+@keyframes wabr-reply-glow {
+  0% {
+    box-shadow:
+      var(--wabr-shadow), var(--wabr-catch),
+      0 0 0 1px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.9),
+      0 0 18px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.9),
+      0 0 44px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.55);
+  }
+  100% {
+    box-shadow:
+      var(--wabr-shadow), var(--wabr-catch),
+      0 0 0 1px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.34),
+      0 0 18px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.25);
+  }
+}
+
+@keyframes wabr-reply-glow-max {
+  0% {
+    box-shadow:
+      0 24px 70px rgba(0, 0, 0, 0.5), var(--wabr-catch),
+      0 0 0 1px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.9),
+      0 0 18px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.9),
+      0 0 44px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.55);
+  }
+  100% {
+    box-shadow:
+      0 24px 70px rgba(0, 0, 0, 0.5), var(--wabr-catch),
+      0 0 0 1px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.34),
+      0 0 18px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.25);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rpane.is-reply:not(.is-empty) { animation: none; }
+}
+
+/* ---------- header strip (close X + reply-as identity + controls) ---------- */
+
+.rpane-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  min-height: 2.7em;
+  padding: 0.5em 0.8em;
+  border-bottom: 1px solid var(--wabr-hairline);
+  flex: 0 0 auto;
+}
+
+/* V12.6 Z2: a failed pane names itself at the header hairline too, dim red
+   (the rail already holds a steady red line under it). Fail loud, from
+   across the desk, not only inside the state box. The next action clears
+   the class with it. */
+.rpane.is-error .rpane-head {
+  border-bottom-color: rgba(240, 168, 153, 0.55);
+}
+
+/* V12.2 U1: the close X, first thing in the header (top-left corner of the
+   pane, before the face). 1.47em is the 22px hit area at 1x zoom; em so it
+   scales with the pane zoom like every other header control. One click
+   closes the conversation view; the chat stays on WhatsApp. */
+.rp-close {
+  flex: 0 0 auto;
+  width: 1.47em;
+  height: 1.47em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--wabr-hairline);
+  background: var(--wabr-soft);
+  color: var(--wabr-text-3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  cursor: pointer;
+  padding: 0;
+}
+.rp-close:hover {
+  background: var(--wabr-hover);
+  border-color: var(--wabr-hairline-strong);
+  color: var(--wabr-text);
+}
+.rp-close:focus-visible {
+  outline: none;
+  border-color: var(--wabr-hairline-strong);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
+}
+.rp-close svg { width: 0.75em; height: 0.75em; display: block; }
+
+.rpane-id {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  min-width: 0;
+}
+
+.rp-dot {
+  width: 0.65em;
+  height: 0.65em;
+  min-width: 0.65em;
+  border-radius: 50%;
+  background: var(--wabr-acct, rgba(255, 255, 255, 0.42));
+}
+
+.rp-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.95em;
+  font-weight: 600;
+  color: var(--wabr-text);
+}
+
+.rp-acct {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78em;
+  color: var(--wabr-text-2);
+}
+
+/* V12.5 Y2: typing dots. While the spine's eng:on-typing push lists the
+   mounted pane's person, three dots (0.53em = 8px at 1x zoom, em so they
+   scale with the pane zoom like every header element) bounce next to the
+   person name in the account color, and the account-name text steps
+   aside. Pure pane class: render.js toggles .is-typing on .rpane. */
+.rp-typing {
+  display: none;
+  align-items: center;
+  gap: 0.24em;
+  flex: 0 0 auto;
+}
+.rpane.is-typing .rp-typing { display: inline-flex; }
+.rpane.is-typing .rp-acct { display: none; }
+
+.rp-tdot {
+  width: 0.53em;
+  height: 0.53em;
+  border-radius: 50%;
+  background: var(--wabr-acct, rgba(255, 255, 255, 0.42));
+  animation: wabr-tdot 1.2s ease-in-out infinite;
+}
+.rp-tdot:nth-child(2) { animation-delay: 0.2s; }
+.rp-tdot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes wabr-tdot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-0.3em); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rp-tdot { animation: none; opacity: 0.85; }
+}
+
+.rp-unread {
+  display: none;
+  min-width: 1.2em;
+  height: 1.2em;
+  padding: 0 0.35em;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--wabr-on-light);
+  font-size: 0.72em;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.rpane-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  flex: 0 0 auto;
+}
+
+.rp-btn {
+  width: 1.85em;
+  height: 1.85em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--wabr-hairline);
+  background: var(--wabr-soft);
+  color: var(--wabr-text-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  cursor: pointer;
+}
+.rp-btn:hover {
+  background: var(--wabr-hover);
+  color: var(--wabr-text);
+}
+.rp-btn:focus-visible {
+  outline: none;
+  border-color: var(--wabr-hairline-strong);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
+}
+.rp-btn svg { width: 0.95em; height: 0.95em; display: block; }
+
+.rp-zoom {
+  min-width: 2.9em;
+  text-align: center;
+  font-size: 0.72em;
+  color: var(--wabr-text-3);
+}
+
+/* ---------- V12.5 Y2: progression rail under the header ---------- */
+
+/* The 2px rail sits between the pane header and the message bed (full pane
+   width). It rides the header's bottom hairline (margin-top -1px), so idle
+   it is invisible and busy the hairline itself comes alive. render.js adds
+   exactly one state class at a time:
+   is-load  indeterminate shimmer, account color at 0.7 alpha
+   is-send  left-anchored determinate-ish pulse while the central bar sends
+   is-done  300ms bright sweep after success, then quiet (JS clears it)
+   is-err   steady dim red #f0a899 until the next action clears it
+   The account color arrives as --wabr-glow-rgb (an "r,g,b" triplet set
+   inline by render.js), so every alpha below stays CSS-owned. */
+.rprog {
+  position: relative;
+  flex: 0 0 auto;
+  width: 100%;
+  height: 2px;
+  margin-top: -1px; /* ride the header hairline instead of adding a gap */
+  z-index: 2;
+  pointer-events: none;
+}
+.rprog-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  border-radius: 999px;
+  background: transparent;
+  transform-origin: left center;
+}
+/* Empty panes show no header, minimized panes are a chip row: no rail.
+   V12.6 Z2: is-empty is the picker state only now (see the pane frame note
+   above), so every loading, error and nothread pane DOES show this rail:
+   that is the loading visibility law, checked against the computed display
+   chain (no parent rule display:none's .rprog outside these two). */
+.rpane.is-empty .rprog,
+.rpane.is-min .rprog { display: none; }
+
+/* Loading (also open resolve + engine pre-open): a 38%-wide shimmer band
+   sweeps left to right on a steady loop. */
+.rprog.is-load .rprog-bar {
+  width: 38%;
+  background: linear-gradient(90deg,
+    rgba(var(--wabr-glow-rgb, 255, 255, 255), 0) 0%,
+    rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.7) 50%,
+    rgba(var(--wabr-glow-rgb, 255, 255, 255), 0) 100%);
+  animation: wabr-prog-run 1.15s linear infinite;
+}
+@keyframes wabr-prog-run {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(280%); }
+}
+
+/* Sending: a left-anchored bar breathing toward its full length. Reads as
+   approaching done, distinct from the running load band. */
+.rprog.is-send .rprog-bar {
+  width: 62%;
+  background: rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.55);
+  box-shadow: 0 0 6px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.35);
+  animation: wabr-prog-send 1.1s ease-in-out infinite;
+}
+@keyframes wabr-prog-send {
+  0%, 100% { transform: scaleX(0.68); opacity: 0.55; }
+  50% { transform: scaleX(1); opacity: 0.95; }
+}
+
+/* Success: one 300ms bright sweep filling from the left, then the rail
+   goes quiet (render.js clears the class right after the run). */
+.rprog.is-done .rprog-bar {
+  width: 100%;
+  background: rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.95);
+  box-shadow: 0 0 8px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.45);
+  animation: wabr-prog-done 300ms ease-out forwards;
+}
+@keyframes wabr-prog-done {
+  0% { transform: scaleX(0.3); opacity: 0; }
+  35% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+
+/* Failure: steady dim red until the next load or send begins. */
+.rprog.is-err .rprog-bar {
+  width: 100%;
+  background: var(--wabr-red); /* #f0a899 */
+  opacity: 0.72;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rprog.is-load .rprog-bar { animation: none; width: 100%; opacity: 0.55; }
+  .rprog.is-send .rprog-bar { animation: none; width: 100%; opacity: 0.8; }
+  .rprog.is-done .rprog-bar { animation: none; opacity: 0.9; }
+}
+
+/* ---------- body: message bed + state overlay ---------- */
+
+.rpane-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  /* V13 J2: column so the history strip (.rhist) rides ABOVE the message
+     bed. The state overlay below is position absolute and ignores this. */
+  flex-direction: column;
+}
+
+.rpane-msgs {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  /* Bottom inset keeps bubbles clear of the hovering central bar: there is
+     no pane footer anymore, so the bed runs to the pane edge (6.4em is
+     96px at 1x zoom; em so it scales with the pane zoom). The bar sits at
+     its fixed bottom position in every mode since V12.3 W1. */
+  padding: 0.9em 0.9em 6.4em;
+  background: var(--wabr-bed); /* solid bed so bubbles read clean */
+  user-select: text;
+  cursor: text;
+}
+
+/* ---------- V13 J2: scroll-up history strip ---------- */
+
+/* The quiet strip above the message bed: "loading earlier messages" while
+   an older page flies, "beginning of conversation" once the engine says
+   the chat starts here. Static text both ways, so it is reduced-motion
+   safe by construction (no keyframes exist to disable). Glass tokens
+   only; the busy tint is text-2, the end tint text-3. */
+.rhist {
+  flex: 0 0 auto;
+  padding: 0.45em 0.9em 0.35em;
+  font-size: 0.78em;
+  letter-spacing: 0.02em;
+  text-align: center;
+  color: var(--wabr-text-3);
+  background: var(--wabr-bed);
+  border-bottom: 1px solid var(--wabr-hairline);
+  user-select: none;
+}
+.rhist[hidden] { display: none; }
+.rhist.is-busy { color: var(--wabr-text-2); }
+/* Empty panes show the picker, not a bed: no strip either. Minimized panes
+   already hide .rpane-body wholesale. */
+.rpane.is-empty .rhist { display: none; }
+
+.rpane-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9em;
+  padding: 1.5em;
+  text-align: center;
+}
+.rpane-state[hidden] { display: none; }
+
+.rpane-note {
+  max-width: 26em;
+  font-size: 0.95em;
+  color: var(--wabr-text-2);
+}
+
+.rpane-err {
+  max-width: 26em;
+  font-size: 0.9em;
+  color: var(--wabr-red);
+}
+
+.rpane-retry {
+  background: #ffffff;
+  color: var(--wabr-on-light);
+  font-family: var(--wabr-font);
+  font-size: 0.85em;
+  font-weight: 600;
+  border: none;
+  border-radius: 999px;
+  padding: 0.45em 1.2em;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.30);
+}
+.rpane-retry:hover { background: #f5f2e8; }
+.rpane-retry:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
+}
+
+/* skeleton bubbles while loading */
+.rp-skelwrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  width: min(30em, 82%);
+}
+.rp-skel {
+  height: 1.05em;
+  border-radius: 0.55em;
+  background: rgba(255, 255, 255, 0.10);
+  animation: wabr-pulse 1.1s ease-in-out infinite alternate;
+}
+.rp-skel.s-out { align-self: flex-end; }
+.rp-skel:nth-child(1) { width: 62%; }
+.rp-skel:nth-child(2) { width: 44%; }
+.rp-skel:nth-child(3) { width: 70%; }
+.rp-skel:nth-child(4) { width: 38%; }
+.rp-skel:nth-child(5) { width: 55%; }
+@keyframes wabr-pulse {
+  from { opacity: 0.35; }
+  to { opacity: 0.75; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rp-skel { animation: none; opacity: 0.5; }
+}
+
+/* ---------- bubbles ---------- */
+
+.rgrp {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28em;
+}
+.rgrp.g-in { align-items: flex-start; }
+.rgrp.g-out { align-items: flex-end; }
+
+.rname {
+  padding: 0 0.55em;
+  font-size: 0.72em;
+  font-weight: 600;
+  color: var(--wabr-text-3);
+}
+
+.rbub {
+  max-width: min(78%, 34em);
+  padding: 0.5em 0.8em;
+  font-size: 0.95em;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-radius: 0.55em; /* 8px at 1x */
+}
+.rbub.in {
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.rbub.out {
+  background: var(--wabr-acct-soft, rgba(255, 255, 255, 0.10));
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.rbub.in.first { border-top-left-radius: 0.22em; }
+.rbub.out.first { border-top-right-radius: 0.22em; }
+
+.rtime {
+  padding: 0 0.55em 0.1em;
+  font-size: 0.68em;
+  color: var(--wabr-text-3);
+}
+
+.rsys {
+  align-self: center;
+  max-width: 85%;
+  text-align: center;
+  font-size: 0.75em;
+  color: var(--wabr-text-3);
+  padding: 0.25em 1em;
+}
+
+/* ---------- V12.7 F2: media bubbles ---------- */
+
+/* Pending: a glass frame with a dashed hairline and the slow icon pulse;
+   loaded: solid hairline holding the real media; failed: dashed and quiet;
+   sticker: no chrome at all. The frame is 4/3, max 260px wide (18em is
+   256px at 1x zoom, so pane zoom scales it up to the cap). */
+.rbub.is-media { padding: 0.22em; }
+.rbub.is-media.in  { border-style: dashed; border-color: rgba(255, 255, 255, 0.20); }
+.rbub.is-media.out { border-style: dashed; border-color: rgba(255, 255, 255, 0.24); }
+.rbub.is-media.is-loaded.in  { border-style: solid; border-color: rgba(255, 255, 255, 0.16); }
+.rbub.is-media.is-loaded.out { border-style: solid; border-color: rgba(255, 255, 255, 0.20); }
+.rbub.is-media.is-failed { background: transparent; }
+
+.rmedia-frame {
+  position: relative;
+  width: min(18em, 260px);
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5em;
+  background: rgba(0, 0, 0, 0.34); /* glass bed so photos read clean */
+  overflow: hidden;
+}
+
+.rmedia-ico { display: flex; color: rgba(255, 255, 255, 0.36); }
+.rmedia-ico svg { width: 1.7em; height: 1.7em; display: block; }
+.rmedia-frame.is-wait .rmedia-ico { animation: wabr-media-wait 1.6s ease-in-out infinite; }
+@keyframes wabr-media-wait {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.75; }
+}
+
+.rmedia-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  cursor: zoom-in;
+  border-radius: inherit;
+}
+.rmedia-img:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.4);
+}
+
+.rmedia-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  background: #000;
+  border-radius: inherit;
+}
+
+/* Sticker: the bubble chrome disappears entirely, just the image. */
+.rbub.is-media.is-sticker {
+  padding: 0.1em;
+  background: transparent;
+  border-color: transparent;
+}
+.rbub.is-media.is-sticker.in,
+.rbub.is-media.is-sticker.out { border-color: transparent; }
+.rmedia-stick {
+  max-width: 180px;
+  max-height: 180px;
+  display: block;
+}
+
+/* Audio and failure: quiet chips, never loud. */
+.rmedia-note,
+.rmedia-fail {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  max-width: 100%;
+  padding: 0.34em 0.66em;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.8em;
+  color: var(--wabr-text-2);
+}
+.rmedia-note svg,
+.rmedia-fail svg { width: 0.95em; height: 0.95em; flex: 0 0 auto; }
+
+.rmedia-retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em;
+  height: 1.5em;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--wabr-text-2);
+  cursor: pointer;
+}
+.rmedia-retry:hover {
+  background: var(--wabr-hover);
+  color: var(--wabr-text);
+}
+.rmedia-retry:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
+}
+.rmedia-retry svg { width: 0.95em; height: 0.95em; display: block; }
+
+/* ---------- V12.7 F2: links in text bubbles ---------- */
+
+/* Anchor inherits the bubble text; hover (and keyboard focus) underlines in
+   the account's own color. Long URLs break anywhere so they never push the
+   bubble past its width. */
+.rbub a.wabr-link {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.rbub a.wabr-link:hover,
+.rbub a.wabr-link:focus-visible {
+  text-decoration: underline;
+  text-decoration-color: var(--wabr-acct, rgba(255, 255, 255, 0.85));
+  text-underline-offset: 0.22em;
+}
+.rbub a.wabr-link:focus-visible { outline: none; }
+
+/* The compact chip under a sole-URL bubble: domain strong, path truncated.
+   It rides the group's side alignment (in from the left, out from the
+   right), just under the bubble it belongs to. */
+.rlink-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42em;
+  max-width: min(78%, 22em);
+  margin: 0 0.3em 0.1em;
+  padding: 0.3em 0.62em;
+  border-radius: 0.6em;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  font-family: var(--wabr-font);
+  font-size: 0.78em;
+  color: var(--wabr-text-2);
+  cursor: pointer;
+  min-width: 0;
+}
+.rlink-chip:hover {
+  background: var(--wabr-hover);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+.rlink-chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
+}
+.rlink-chip svg { width: 0.9em; height: 0.9em; flex: 0 0 auto; color: var(--wabr-text-3); }
+.rlink-domain { font-weight: 600; color: var(--wabr-text); white-space: nowrap; }
+.rlink-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- V12.7 F2: the image lightbox ---------- */
+
+/* Fixed overlay above everything (the central bar sits at 150): the image
+   centered at up to 92vw x 86vh, click-away closes, Esc closes, the close
+   pill sits top right. Data URLs only, so nothing ever dials out. */
+.rmedia-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3em;
+  background: rgba(10, 11, 6, 0.86);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+}
+.rmedia-lightbox[hidden] { display: none; }
+
+.rmlb-img {
+  max-width: min(92vw, 1400px);
+  max-height: 86vh;
+  border-radius: 12px;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6);
+}
+
+.rmlb-close {
+  position: absolute;
+  top: 1.2em;
+  right: 1.2em;
+  width: 2.2em;
+  height: 2.2em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--wabr-hairline);
+  background: rgba(46, 46, 30, 0.60);
+  color: var(--wabr-text-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  cursor: pointer;
+  padding: 0;
+}
+.rmlb-close:hover {
+  background: var(--wabr-hover);
+  color: var(--wabr-text);
+}
+.rmlb-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16);
+}
+.rmlb-close svg { width: 1em; height: 1em; display: block; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rmedia-frame.is-wait .rmedia-ico { animation: none; opacity: 0.6; }
+}
+
+.rnonote {
+  align-self: center;
+  padding: 1.2em 0;
+  font-size: 0.85em;
+  color: var(--wabr-text-3);
+}
+
+/* No compose footer section anymore (V12.1 T3): the hovering central bar
+   (.gcompose below) is the ONE entry box; panes are built footer-free. */
+
+/* ---------- minimized: 44px chip row ---------- */
+
+.rpane.is-min {
+  height: 44px !important;
+}
+.rpane.is-min .rpane-body { display: none; }
+.rpane.is-min .rpane-head {
+  flex: 1;
+  border-bottom: none;
+  cursor: pointer;
+  gap: 0.7em;
+}
+.rpane.is-min .rp-btn-z,
+.rpane.is-min .rp-zoom,
+.rpane.is-min .rp-btn-max { display: none; }
+.rpane.is-min .rp-unread:not([hidden]) { display: flex; }
+
+/* ---------- scrollbars inside panes (thin, glass) ---------- */
+
+.rpane-msgs::-webkit-scrollbar { width: 8px; }
+.rpane-msgs::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.rpane-msgs::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
+  background-clip: content-box;
+  border: 2px solid transparent;
+}
+.rpane-msgs::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- people rail upgrade: initial avatars ---------- */
+
+.wabr-avatar {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--wabr-text, #ffffff);
+  background: rgba(0, 0, 0, 0.30);
+  border: 2px solid var(--wabr-ring, rgba(255, 255, 255, 0.42));
+}
+
+/* ---------- v2 chip layer stands down: panes carry the identity ---------- */
+
+body.wab-render-live #wab-pane-chips { display: none; }
+
+/* ---------- maximized: rail collapses to a 56px icon rail ---------- */
+
+body.wab-maximized { --rail-w: 56px; }
+
+body.wab-maximized .wordmark {
+  padding: 14px 6px 2px;
+  text-align: center;
+  font-size: 0;
+}
+body.wab-maximized .wordmark::before {
+  content: "WA";
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+}
+body.wab-maximized .rail-sub { display: none; }
+
+body.wab-maximized #people-rail { max-height: 46%; }
+body.wab-maximized .people-head,
+body.wab-maximized .people-filter { display: none; }
+body.wab-maximized .people-list {
+  align-items: center;
+  padding: 8px 4px 4px;
+}
+body.wab-maximized .people-row {
+  width: auto;
+  justify-content: center;
+  gap: 0;
+  padding: 6px 2px;
+}
+body.wab-maximized .people-row .people-name { display: none; }
+body.wab-maximized .people-note { display: none; }
+
+body.wab-maximized .account-list {
+  padding: 8px 4px 4px;
+  align-items: center;
+}
+body.wab-maximized .account-card {
+  flex-direction: column;
+  gap: 4px;
+  width: 44px;
+  padding: 8px 2px;
+}
+body.wab-maximized .card-name,
+body.wab-maximized .card-status .status-label { display: none; }
+body.wab-maximized .card-status { justify-content: center; }
+body.wab-maximized .unread-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 15px;
+  height: 15px;
+  font-size: 10px;
+  padding: 0 3px;
+}
+body.wab-maximized .relink-btn {
+  font-size: 9px;
+  padding: 2px 4px;
+}
+body.wab-maximized .rail-foot { padding: 8px 6px; }
+body.wab-maximized .add-account-btn {
+  font-size: 0;
+  padding: 8px 0;
+}
+body.wab-maximized .add-account-btn::before {
+  content: "+";
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* ---------- v3.1: central compose bar + avatars (the owner's 2026-11-21 pass) ---------- */
+
+/* The ONE entry box: wide, glass, hovering at the bottom, centered over the
+   CONVERSATION AREA (right of the rail), never the raw window (V12.4 X2).
+   render.js (positionComposeBar) measures #render-root (inset 0 of
+   #slot-area) on every pane sync and writes left in px plus a maxWidth that
+   respects the area width; left:50% below is only the pre-measure boot
+   default. transform keeps the centering; bottom stays fixed at 18px in
+   page coordinates in every mode. No left transition on purpose: the
+   slot-area ResizeObserver reports every frame of a rail fold, so the bar
+   tracks the fold live instead of animating behind it. */
+.gcompose {
+  position: fixed;
+  left: 50%; /* boot default until the first measure; render.js owns the px */
+  transform: translateX(-50%);
+  bottom: 18px;
+  width: min(760px, calc(100vw - 48px));
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(46, 46, 30, 0.55);
+  backdrop-filter: blur(30px) saturate(1.5);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 22px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  z-index: 150;
+}
+.gcompose.is-live { border-color: rgba(255, 255, 255, 0.4); }
+.gc-chip {
+  display: flex; align-items: center; gap: 8px; min-width: 0; padding-right: 8px;
+  border-right: 1px solid rgba(255,255,255,0.16);
+  cursor: pointer; border-radius: 10px; /* clickable: focuses the routed pane */
+}
+.gc-avatar {
+  width: 34px; height: 34px; min-width: 34px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  background-size: cover; background-position: center;
+  border: 1.5px solid rgba(255, 255, 255, 0.42);
+  color: #fff; font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
+  overflow: hidden;
+}
+.gc-idn { display: flex; flex-direction: column; min-width: 0; max-width: 180px; }
+.gc-name { color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gc-acct { color: rgba(255, 255, 255, 0.74); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gc-ta {
+  flex: 1; resize: none; border: none; outline: none;
+  background: transparent; color: #fff;
+  font-family: inherit; font-size: 15px; line-height: 1.45;
+  max-height: 140px; padding: 6px 2px;
+}
+.gc-ta::placeholder { color: rgba(255, 255, 255, 0.42); }
+.gc-send {
+  background: #ffffff; color: #26261a; border: none; border-radius: 999px;
+  padding: 9px 18px; font-size: 13.5px; font-weight: 600; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+.gc-send:hover { background: #f5f2e8; }
+.gc-send:disabled { opacity: 0.6; cursor: default; }
+
+/* ---------- V12.1 T3: the central bar is the visible ROUTER ---------- */
+
+/* Left-edge strip in the routed account's color. render.js sets --wabr-acct
+   and --wabr-glow-rgb inline on the bar (the bar lives outside #render-root,
+   so the vars must come with it), same triplet pattern as the pane glow. */
+.gc-route {
+  position: absolute;
+  left: 5px;
+  top: 12px;
+  bottom: 12px;
+  width: 4px;
+  border-radius: 999px;
+  background: var(--wabr-acct, rgba(255, 255, 255, 0.42));
+  box-shadow: 0 0 8px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.45);
+}
+/* No conversation routed: the strip idles dim instead of lying with a color. */
+.gcompose:not(.is-live) .gc-route { opacity: 0.3; }
+
+/* The routed pane changed: one subtle 300ms pulse in the routed account's
+   color, so the eye follows the route. render.js restarts the class. */
+.gcompose.is-route-pulse { animation: wabr-route-pulse 300ms ease-out; }
+@keyframes wabr-route-pulse {
+  0% {
+    box-shadow:
+      0 18px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      0 0 0 3px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.45);
+  }
+  100% {
+    box-shadow:
+      0 18px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      0 0 0 3px rgba(var(--wabr-glow-rgb, 255, 255, 255), 0);
+  }
+}
+
+/* The identity chip answers "where does this go". */
+.gc-chip:hover { background: rgba(255, 255, 255, 0.07); }
+.gc-chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16);
+}
+
+/* Chip click: the routed pane flashes its edge once in its account color. */
+.rpane.is-route { animation: wabr-route-flash 300ms ease-out; }
+@keyframes wabr-route-flash {
+  0% { border-color: rgba(var(--wabr-glow-rgb, 255, 255, 255), 0.95); }
+  100% { border-color: var(--wabr-hairline); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gcompose.is-route-pulse,
+  .rpane.is-route { animation: none; }
+}
+
+/* Avatars in pane headers. Photo-only law (PR #3 / #8): when a real photo
+   exists the ring decoration disappears and it is just the photo; the ring
+   and initials only ever appear as the fallback. */
+.ravatar {
+  width: 26px; height: 26px; min-width: 26px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  background-size: cover; background-position: center;
+  border: 1.5px solid rgba(255, 255, 255, 0.42);
+  color: #fff; font-size: 10.5px; font-weight: 600;
+  overflow: hidden;
+}
+.ravatar.has-img,
+.gc-avatar.has-img { border-color: transparent; }
+
+/* ---------- v2.1: account picker + account home (owner spec 2026-11-21) ---------- */
+
+.rp-picker { display: flex; flex-direction: column; gap: 8px; padding: 18px 16px 6px; }
+.rp-picker-title { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.5); }
+.rp-acc-chip {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 12px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.9); cursor: pointer; text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+}
+.rp-acc-chip:hover { background: rgba(255,255,255,0.11); border-color: rgba(255,255,255,0.22); }
+.rp-acc-name { font-size: 14px; font-weight: 600; }
+.rp-picker-sub { font-size: 11.5px; color: rgba(255,255,255,0.4); padding-top: 4px; }
+
+.rp-home { display: flex; flex-direction: column; height: 100%; padding: 12px 10px; }
+.rp-home-title { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.45); padding: 2px 6px 10px; }
+.rp-home-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+.rp-home-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 10px; border: none; cursor: pointer;
+  background: transparent; color: rgba(255,255,255,0.88); text-align: left;
+  transition: background 0.12s;
+}
+.rp-home-row:hover { background: rgba(255,255,255,0.07); }
+.rp-home-mid { flex: 1; overflow: hidden; }
+.rp-home-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+
+/* ---------- v12 S4: grid4 + grid6 layout modes ---------- */
+
+/* SEAM NOTE: shell.css (S3's file) owns the body[data-layout] slot-grid rules
+   for single/split2/split3/grid5/tabs. The grid4/grid6 rules live HERE so
+   this stage stays inside its file claims; body[data-layout] selectors apply
+   the same from any stylesheet, and render.css loads after shell.css. The
+   grid5 guard below exists because shell.js now injects a 6th slot element
+   (index.html ships 5) and shell.css's grid5 rule never needed a hide list
+   before. If S3 later lands matching rules in shell.css, these can be
+   deduplicated at merge time.
+
+   Geometry: grid6 is 3 columns x 2 rows (not 2x3). At the 1600px desk the
+   3-wide layout gives roughly 440px columns with full-height halves, which
+   reads like a real WhatsApp thread; 2x3 would cut threads to ~270px tall
+   strips. grid4 is 2x2. Pane geometry itself needs no CSS: render.js sizes
+   each .rpane from WABSlots.getRects() measured on these slots. */
+
+body[data-layout="grid4"] .slot-area { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+body[data-layout="grid6"] .slot-area { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; }
+
+body[data-layout="grid4"] .slot:not([data-slot="0"]):not([data-slot="1"]):not([data-slot="2"]):not([data-slot="3"]),
+body[data-layout="grid5"] .slot:not([data-slot="0"]):not([data-slot="1"]):not([data-slot="2"]):not([data-slot="3"]):not([data-slot="4"]),
+body[data-layout="grid6"] .slot:not([data-slot="0"]):not([data-slot="1"]):not([data-slot="2"]):not([data-slot="3"]):not([data-slot="4"]):not([data-slot="5"]) { display: none; }
+
+/* ---------- V12.3 W1: screen dots at the pane top (the only switcher UI) ---------- */
+
+/* SEAM NOTE: the dead bottom switcher's markup (#screen-switcher, arrows,
+   dots) ships in index.html and its geometry lives in shell.css (both S3
+   files). shell.js removes the element from the DOM at boot, so those rules
+   go inert without touching S3's files. The live switcher UI is this .rsdots
+   row, built and positioned by render.js inside #render-root over the first
+   visible pane rect: one dot per virtual screen, visible in single and tabs
+   ONLY (render.js hides the row in every split and grid mode). */
+
+.rsdots {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 2px; /* 14px hit areas with 3px inner padding: 8px visual dot gap */
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(46, 46, 30, 0.55);
+  backdrop-filter: blur(var(--wabr-blur)) saturate(var(--wabr-saturate));
+  -webkit-backdrop-filter: blur(var(--wabr-blur)) saturate(var(--wabr-saturate));
+  border: 1px solid var(--wabr-hairline);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  pointer-events: auto;
+  transform: translateX(-50%); /* render.js centers it on the pane rect */
+  z-index: 6; /* above maximized panes (5), below overlays */
+}
+.rsdots[hidden] { display: none; }
+
+/* The dot: a 14px hit area carrying an 8px visual dot (::after), so the
+   click target stays generous without growing the row. */
+.rsdot {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+.rsdot::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.38); /* hollow: empty screen */
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+.rsdot:hover::after {
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.7);
+}
+.rsdot:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16);
+}
+
+/* Occupied: filled with the screen conversation's account color. --rsd-color
+   and --rsd-rgb (an "r,g,b" triplet) are set inline by render.js; the color
+   is account DATA the owner picked, never a theme choice. */
+.rsdot.busy::after {
+  background: var(--rsd-color, rgba(255, 255, 255, 0.88));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22); /* definition on light colors */
+}
+.rsdot.busy:hover::after {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22), 0 0 0 2px rgba(255, 255, 255, 0.20);
+}
+
+/* Active screen: slightly larger and ringed. */
+.rsdot.on::after {
+  transform: translate(-50%, -50%) scale(1.3);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.5), 0 0 0 2px rgba(255, 255, 255, 0.30);
+}
+.rsdot.busy.on::after {
+  background: var(--rsd-color, rgba(255, 255, 255, 0.88));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22), 0 0 0 2px rgba(255, 255, 255, 0.30);
+}
+
+/* New reply on an UNMOUNTED screen: the dot blinks in the account color on a
+   steady 1.2s loop until that screen is mounted (render.js clears has-new,
+   then the pane's own reply flare takes over). */
+.rsdot.busy.has-new::after { animation: wabr-dot-blink 1.2s ease-in-out infinite; }
+@keyframes wabr-dot-blink {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22), 0 0 0 0 rgba(var(--rsd-rgb, 255, 255, 255), 0);
+  }
+  50% {
+    opacity: 0.45;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22), 0 0 9px 2px rgba(var(--rsd-rgb, 255, 255, 255), 0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rsdot.busy.has-new::after {
+    animation: none;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22), 0 0 0 2px rgba(var(--rsd-rgb, 255, 255, 255), 0.85);
+  }
+}
+
+/* ---------- V12.7 W2: pane stacks (layout auto-distribution) ---------- */
+/* The stack dots: the rsdots visual scoped smaller, rendered by render.js
+   INSIDE a stacked pane's top (split and grid layouts only). One dot per
+   stacked conversation of that slot's account; the mounted one is ringed;
+   a hidden member with new replies blinks in its account color. */
+.rstackdots {
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(46, 46, 30, 0.55);
+  backdrop-filter: blur(var(--wabr-blur)) saturate(var(--wabr-saturate));
+  -webkit-backdrop-filter: blur(var(--wabr-blur)) saturate(var(--wabr-saturate));
+  border: 1px solid var(--wabr-hairline);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  pointer-events: auto;
+  transform: translateX(-50%);
+  z-index: 3; /* above the pane header, below the screen dots (6) and overlays */
+}
+.rstackdots[hidden] { display: none; }
+
+/* The dot: an 11px hit area carrying a 5px visual dot (::after). */
+.rstackdot {
+  position: relative;
+  width: 11px;
+  height: 11px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+.rstackdot::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.38); /* hollow: empty */
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+.rstackdot:hover::after { box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.7); }
+.rstackdot:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16);
+}
+
+/* Occupied: filled with the stacked conversation's account color. --rsd-color
+   and --rsd-rgb are set inline by render.js; the color is account DATA
+   the owner picked, never a theme choice. */
+.rstackdot.busy::after {
+  background: var(--rsd-color, rgba(255, 255, 255, 0.88));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
+}
+.rstackdot.on::after {
+  transform: translate(-50%, -50%) scale(1.3);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.5), 0 0 0 2px rgba(255, 255, 255, 0.30);
+}
+.rstackdot.busy.on::after {
+  background: var(--rsd-color, rgba(255, 255, 255, 0.88));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22), 0 0 0 2px rgba(255, 255, 255, 0.30);
+}
+
+/* New reply on a HIDDEN stack member: same blink the screen dots use. */
+.rstackdot.busy.has-new::after { animation: wabr-dot-blink 1.2s ease-in-out infinite; }
+
+/* An empty pane never shows a stack row (render.js hides it too). */
+.rpane.is-empty .rstackdots { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rstackdot.busy.has-new::after {
+    animation: none;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22), 0 0 0 2px rgba(var(--rsd-rgb, 255, 255, 255), 0.85);
+  }
+}
+
+/* ---------- V12.7 E1: emoji picker + colon suggestions in the central bar ---------- */
+
+/* the owner's ask: "press a button to add an emoji", "colon and then start
+   typing something". Everything below is ADDITIVE to the compose bar area:
+   the smiley button, the picker panel above the bar, and the caret-anchored
+   colon suggestion popover. The bar's own rules (.gcompose and family) are
+   untouched, and so is every pane / screen / layout rule above.
+
+   The button: hairline glass circle, the pane header control family
+   (.rp-btn) sized to the bar (34px). Painted with literals because the bar
+   lives outside #render-root and its --wabr tokens never reach body
+   children, exactly like the other .gc- rules. Inline SVG icon only: no
+   emoji in UI chrome, the emojis themselves are message content. */
+.gc-emoji-btn {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.74);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  cursor: pointer;
+  padding: 0;
+}
+.gc-emoji-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.34);
+  color: #ffffff;
+}
+.gc-emoji-btn:focus-visible {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.34);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
+}
+.gc-emoji-btn.on {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.34);
+  color: #ffffff;
+}
+.gc-emoji-btn svg { width: 17px; height: 17px; display: block; }
+
+/* The picker panel: child of .gcompose (the fixed bar is its positioned
+   ancestor), anchored above the bar's left edge. Glass tokens, 240px max
+   height; the tab row stays fixed while the Recent row + category grid
+   scroll under it. render.js shifts it left (emPositionPanel) if the
+   viewport's right edge would clip it on a narrow window. */
+.gc-emopick {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 10px);
+  width: 352px;
+  max-width: calc(100vw - 32px);
+  max-height: 240px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: rgba(46, 46, 30, 0.72);
+  backdrop-filter: blur(30px) saturate(1.5);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 16px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  z-index: 5;
+}
+.gc-emopick[hidden] { display: none; }
+
+/* Tiny category tabs, text labels only (no emoji in chrome). The active
+   tab is the white pill, the same accent the Send button uses. */
+.gc-emotabs {
+  display: flex;
+  gap: 2px;
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  overflow-x: auto;
+  flex: 0 0 auto;
+  scrollbar-width: none;
+}
+.gc-emotabs::-webkit-scrollbar { display: none; }
+.gc-emotab {
+  flex: 0 0 auto;
+  border: none;
+  border-radius: 999px;
+  padding: 3px 9px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.gc-emotab:hover { color: #ffffff; background: rgba(255, 255, 255, 0.08); }
+.gc-emotab.on {
+  background: #ffffff;
+  color: #26261a;
+}
+.gc-emotab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
+}
+
+.gc-emoscroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px 0 4px;
+}
+.gc-emoscroll::-webkit-scrollbar { width: 8px; }
+.gc-emoscroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.gc-emoscroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
+  background-clip: content-box;
+  border: 2px solid transparent;
+}
+.gc-emoscroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Section label ("Recent"): the house small-caps style of the picker
+   subtitles, matching .rp-picker-title. */
+.gc-emolabel {
+  padding: 7px 12px 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+.gc-emorecent[hidden] { display: none; }
+
+/* The grid: 8 columns of emoji buttons. The emojis are content and render
+   through the system emoji stack (Segoe UI Emoji on Windows) in color. */
+.gc-emogrid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  padding: 2px 10px 8px;
+}
+.gc-emoji {
+  height: 36px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 21px;
+  line-height: 1;
+  padding: 0;
+}
+.gc-emoji:hover { background: rgba(255, 255, 255, 0.12); }
+.gc-emoji:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+/* The colon suggestion popover: position fixed, anchored above the caret
+   by render.js (emPositionSug), floating above everything (the bar sits at
+   z-index 150). Max 6 rows, glass, no scrolling needed. */
+.gc-emsug {
+  position: fixed;
+  z-index: 160;
+  min-width: 180px;
+  max-width: 280px;
+  padding: 4px;
+  background: rgba(46, 46, 30, 0.78);
+  backdrop-filter: blur(30px) saturate(1.5);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 12px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+.gc-emsug[hidden] { display: none; }
+.gc-emrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  padding: 5px 8px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.gc-emrow.on { background: rgba(255, 255, 255, 0.14); }
+.gc-emrow:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+.gc-em-glyph {
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 18px;
+  line-height: 1;
+}
+.gc-em-name {
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.gc-em-name {
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* ---------- V14 T4: platform watermarks (green WhatsApp, blue Telegram) ---------- */
+
+/* the owner's ruling (docs\TELEGRAM-ADAPTER-SPEC.md, 2026-11-22): make the
+   difference between WhatsApp and Telegram obvious at a glance. Every
+   platform message bed carries a repeating logo watermark, the way the
+   phone apps doodle their chat backgrounds: WhatsApp green #25D366 on the
+   bubble-with-phone glyph, Telegram blue #229ED9 on the paper-plane glyph.
+   Pure CSS + SVG data URIs: no image files, no network, no emoji, and no
+   DOM changes from this file (T5 routes the classes; contract at the
+   bottom of this section).
+
+   #25D366 and #229ED9 are platform DATA (like account colors), sanctioned
+   by the T-series spec which postdates the "green reserved" convention
+   line. The reply/live green tokens stay untouched.
+
+   Layer law on a platform bed, top to bottom: messages, then the flat tint
+   rgba(30,32,20,0.75) carried as the FIRST background-image layer (this
+   linear-gradient IS the bed color now, so background-color goes
+   transparent: the old 0.55 bed would otherwise stack under the pattern
+   and double-darken), then the glyph tile, then the pane glass with its
+   blur. The watermark therefore sits UNDER the bed tint and reads as
+   embedded in the glass, which is the "more solid view". The fill-opacity
+   ladder inside each tile (0.12 / 0.14 / 0.16 / 0.17) is chosen so the
+   tint's 25 percent transmission lands every cell in the 3 to 5 percent
+   effective band (3.0 / 3.5 / 4.0 / 4.25). Stronger or quieter is a
+   two-number edit: the fill-opacities inside the data URI, or the tint
+   alpha here. Never a CSS opacity on the bed: it would dim the messages.
+
+   The tile is a 96px super-tile (6.4em at the 15px 1x base; em so it
+   scales with the pane zoom like every size inside a pane) holding four
+   48px cells of one glyph at varied size, rotation and strength: the
+   organic repeat. The bed is a scroll container and background-attachment
+   stays at its default scroll, so the pattern is anchored to the bed
+   while messages scroll over it. Empty panes hide .rpane-msgs wholesale
+   (.rpane.is-empty rule above), so the picker state never shows a
+   watermark: no extra guard needed here. */
+
+.rpane-msgs.platform-whatsapp {
+  background-color: transparent;
+  background-image:
+    linear-gradient(rgba(30, 32, 20, 0.75), rgba(30, 32, 20, 0.75)),
+    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='96'%20height='96'%20viewBox='0%200%2096%2096'%3E%3Cdefs%3E%3Cpath%20id='w'%20fill-rule='evenodd'%20d='M16%204.6C10.1%204.6%205.2%209.3%205.2%2015.3%205.2%2017.6%205.9%2019.7%207.3%2021.4L5.7%2026.6%2011.1%2025.1C12.6%2025.9%2014.2%2026.4%2016%2026.4%2021.9%2026.4%2026.8%2021.5%2026.8%2015.5%2026.8%209.5%2021.9%204.6%2016%204.6ZM24.37%2016.23A8.4%208.4%200%200%200%2015.27%207.13L15.53%2010.12A5.4%205.4%200%200%201%2021.38%2015.97Z'/%3E%3C/defs%3E%3Cuse%20href='%23w'%20fill='%2325D366'%20fill-opacity='0.16'%20transform='translate(24%2024)%20rotate(-10)%20scale(0.72)%20translate(-16%20-16)'/%3E%3Cuse%20href='%23w'%20fill='%2325D366'%20fill-opacity='0.12'%20transform='translate(72%2024)%20rotate(8)%20scale(0.62)%20translate(-16%20-16)'/%3E%3Cuse%20href='%23w'%20fill='%2325D366'%20fill-opacity='0.14'%20transform='translate(24%2072)%20rotate(14)%20scale(0.66)%20translate(-16%20-16)'/%3E%3Cuse%20href='%23w'%20fill='%2325D366'%20fill-opacity='0.17'%20transform='translate(72%2072)%20rotate(-4)%20scale(0.75)%20translate(-16%20-16)'/%3E%3C/svg%3E");
+  background-repeat: no-repeat, repeat;
+  background-size: 100% 100%, 6.4em 6.4em;
+}
+
+.rpane-msgs.platform-telegram {
+  background-color: transparent;
+  background-image:
+    linear-gradient(rgba(30, 32, 20, 0.75), rgba(30, 32, 20, 0.75)),
+    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='96'%20height='96'%20viewBox='0%200%2096%2096'%3E%3Cdefs%3E%3Cpath%20id='t'%20d='M2.7%2028L30.7%2016%202.7%204%202.7%2013.3%2022.7%2016%202.7%2018.7Z'/%3E%3C/defs%3E%3Cuse%20href='%23t'%20fill='%23229ED9'%20fill-opacity='0.16'%20transform='translate(24%2024)%20rotate(-16)%20scale(0.72)%20translate(-16%20-16)'/%3E%3Cuse%20href='%23t'%20fill='%23229ED9'%20fill-opacity='0.12'%20transform='translate(72%2024)%20rotate(6)%20scale(0.62)%20translate(-16%20-16)'/%3E%3Cuse%20href='%23t'%20fill='%23229ED9'%20fill-opacity='0.14'%20transform='translate(24%2072)%20rotate(12)%20scale(0.66)%20translate(-16%20-16)'/%3E%3Cuse%20href='%23t'%20fill='%23229ED9'%20fill-opacity='0.17'%20transform='translate(72%2072)%20rotate(-8)%20scale(0.75)%20translate(-16%20-16)'/%3E%3C/svg%3E");
+  background-repeat: no-repeat, repeat;
+  background-size: 100% 100%, 6.4em 6.4em;
+}
+
+/* Optional continuity for the history strip (V13 J2 .rhist keeps the plain
+   bed color): when T5 puts the platform class on the strip too, it takes
+   the platform tint without its own pattern, so the strip reads as the top
+   edge of the same surface. Omitting the class there changes nothing. */
+.rhist.platform-whatsapp,
+.rhist.platform-telegram {
+  background-color: rgba(30, 32, 20, 0.75);
+}
+
+/* Platform badge in the pane header, next to the face: 16px at 1x zoom
+   (1.07em; em so it zooms with the pane), the same two glyphs at full
+   brand color. An empty span painted by background-image, so T5 can drop
+   it anywhere in the header identity row; [hidden] hides it clean. */
+.platform-badge-whatsapp,
+.platform-badge-telegram {
+  flex: 0 0 auto;
+  width: 1.07em;
+  height: 1.07em;
+  margin-left: 0.1em;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+}
+.platform-badge-whatsapp {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cpath%20fill='%2325D366'%20fill-rule='evenodd'%20d='M16%204.6C10.1%204.6%205.2%209.3%205.2%2015.3%205.2%2017.6%205.9%2019.7%207.3%2021.4L5.7%2026.6%2011.1%2025.1C12.6%2025.9%2014.2%2026.4%2016%2026.4%2021.9%2026.4%2026.8%2021.5%2026.8%2015.5%2026.8%209.5%2021.9%204.6%2016%204.6ZM24.37%2016.23A8.4%208.4%200%200%200%2015.27%207.13L15.53%2010.12A5.4%205.4%200%200%201%2021.38%2015.97Z'/%3E%3C/svg%3E");
+}
+.platform-badge-telegram {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cpath%20fill='%23229ED9'%20transform='rotate(-8%2016%2016)'%20d='M2.7%2028L30.7%2016%202.7%204%202.7%2013.3%2022.7%2016%202.7%2018.7Z'/%3E%3C/svg%3E");
+}
+.platform-badge-whatsapp[hidden],
+.platform-badge-telegram[hidden] { display: none; }
+
+/* DOM contract (T5-renderer owns render.js; this file only styles):
+   - The message bed (.rpane-msgs, pane.msgsEl) carries exactly one
+     platform class, from the person's account platform field:
+     platform-whatsapp or platform-telegram. Every person reset
+     (setPerson, clearPerson, showAccountHome, openFullWhatsApp,
+     recordHiddenScreenPerson) must remove both classes, the same places
+     J2 resets its history flags.
+   - The badge is a span created lazily like the avatar (updateIdentity is
+     the natural hook): class platform-badge-whatsapp or
+     platform-badge-telegram, placed in .rpane-id beside the face
+     (ravatar / rp-dot), aria-hidden true, hidden when the person has no
+     platform. Swap the class in place on person change, never stack them.
+   - .rhist may take the platform class too (optional, see the strip rule). */
+
+/* ---------- V14 U1: platform logo asset system (reusable WA / TG marks) ---------- */
+
+/* the owner's ask (U-series ruling, stages\U-PLATFORM-CARDS, 2026-11-22): the
+   platform logos become a reusable asset system. The rail connection
+   cards, the bottom-left connected strip and the pane headers all draw
+   the same two marks, at several sizes, in two connection states. T4
+   already ships each glyph once as a 32px SVG data URI at full brand
+   color (the .platform-badge-* rules above): those two URIs are the
+   artwork. This section lifts them into custom properties, --logo-wa and
+   --logo-tg (byte-identical copies; CSS cannot alias another rule's
+   background image), and builds the class system on top. If the art ever
+   changes, the T4 badge rules and the two properties must move together; the
+   one-line dedup seam is filed in this stage's CONTEXT.md.
+
+   Class grammar (state classes follow the house is- pattern):
+     .plat-logo             base: round inline-block chip, paints the glyph
+     .plat-logo-wa / -tg    platform: picks glyph and brand color
+     .plat-logo-24 / -20    size: 24px rail cards, 20px bottom strip
+     .is-connected          full color + status dot on the rim (::after)
+     .is-unconnected        ghost: 35 percent, dashed ring, hover plus
+
+   #25D366 and #229ED9 are platform DATA (T-series spec sanction, same law
+   as T4 above and people.css --wabp-plat-*). Every other color is a glass
+   token. This file mirrors glass into --wabr-* under #render-root, but
+   this system must also paint OUTSIDE #render-root (the rail lives in
+   #rail), where those mirrors do not exist: so chrome reads the --g-* /
+   :root tokens from glass.css directly, the same law debug.css,
+   activity.css and shell.css already follow. */
+
+:root {
+  --logo-wa: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cpath%20fill='%2325D366'%20fill-rule='evenodd'%20d='M16%204.6C10.1%204.6%205.2%209.3%205.2%2015.3%205.2%2017.6%205.9%2019.7%207.3%2021.4L5.7%2026.6%2011.1%2025.1C12.6%2025.9%2014.2%2026.4%2016%2026.4%2021.9%2026.4%2026.8%2021.5%2026.8%2015.5%2026.8%209.5%2021.9%204.6%2016%204.6ZM24.37%2016.23A8.4%208.4%200%200%200%2015.27%207.13L15.53%2010.12A5.4%205.4%200%200%201%2021.38%2015.97Z'/%3E%3C/svg%3E");
+  --logo-tg: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cpath%20fill='%23229ED9'%20transform='rotate(-8%2016%2016)'%20d='M2.7%2028L30.7%2016%202.7%204%202.7%2013.3%2022.7%2016%202.7%2018.7Z'/%3E%3C/svg%3E");
+}
+
+/* Base. An empty painted span (no text content). --plat-size drives every
+   measurement in the system, width, height, dot and disc, so one override
+   resizes the whole mark; the pane-internal zoom law wants em there
+   (1.6em / 1.33em at the 15px pane base), set by the consumer file, not
+   here. The dashed border is declared on the base as transparent so
+   flipping the connection state animates border-color without a 1px
+   layout jump. Default --plat-logo is none: a span missing its platform
+   class paints an empty chip (visible in smoke) instead of silently
+   falling back to a wrong brand. */
+.plat-logo {
+  --plat-size: 24px;
+  --plat-logo: none;
+  --plat-color: var(--g-hairline-strong);
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  vertical-align: middle;
+  box-sizing: border-box;
+  width: var(--plat-size);
+  height: var(--plat-size);
+  border-radius: 50%;
+  border: 1px dashed transparent;
+  background-image: var(--plat-logo);
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+  transition: opacity 200ms ease, border-color 200ms ease;
+}
+
+/* Platform: glyph + brand data color (the ::after dot and any consumer
+   accent read --plat-color). */
+.plat-logo-wa { --plat-logo: var(--logo-wa); --plat-color: #25D366; }
+.plat-logo-tg { --plat-logo: var(--logo-tg); --plat-color: #229ED9; }
+
+/* Sizes: 24 for the rail connection cards, 20 for the bottom strip. The
+   16px pane header badge stays T4's em-based .platform-badge-* classes;
+   a 16 modifier here is a one-liner if a consumer wants parity. */
+.plat-logo-24 { --plat-size: 24px; }
+.plat-logo-20 { --plat-size: 20px; }
+
+/* Connected: the full brand glyph (the base paint, opacity 1 by default)
+   with the status dot pinned to the bottom-right rim, the avatar
+   convention. The dot is a third of the mark (7.9px at 24, 6.6px at 20;
+   the house .status-dot is 7px) in the platform brand color, cut from
+   the glyph by a 1.5px solid --g-bg-0 ring. No cursor: a connected mark
+   is identity, not a button; U3 overrides where a click does something. */
+.plat-logo.is-connected::after {
+  content: "";
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: calc(var(--plat-size) * 0.33);
+  height: calc(var(--plat-size) * 0.33);
+  border-radius: 50%;
+  background: var(--plat-color);
+  box-shadow: 0 0 0 1.5px var(--g-bg-0);
+}
+
+/* Unconnected: a ghost button. The whole mark sits at 35 percent, glyph
+   and ring together, so it reads parked rather than broken. The ring is
+   --g-hairline-strong: through 0.35 opacity that lands near 0.12
+   effective (a quiet ghost) and the hover lift to 0.70 brings it to
+   0.24, the everyday hairline. Hover also fades in the plus at the
+   center: a solid --g-bg-0 disc (58 percent of the mark) with two
+   centered --g-text bars, the CSS plus (two linear-gradients as
+   background layers), readable on top of the dimmed glyph. */
+.plat-logo.is-unconnected {
+  opacity: 0.35;
+  border-color: var(--g-hairline-strong);
+  cursor: pointer;
+}
+.plat-logo.is-unconnected:hover { opacity: 0.7; }
+.plat-logo.is-unconnected::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--plat-size) * 0.58);
+  height: calc(var(--plat-size) * 0.58);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background-color: var(--g-bg-0);
+  background-image:
+    linear-gradient(var(--g-text), var(--g-text)),
+    linear-gradient(var(--g-text), var(--g-text));
+  background-size: 55% 2px, 2px 55%;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: 0 0 0 1px var(--g-hairline);
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+.plat-logo.is-unconnected:hover::after { opacity: 1; }
+
+/* Keyboard reach for U3's connect buttons: a static focus ring, no
+   motion, glass tokens. */
+.plat-logo:focus-visible {
+  outline: 2px solid var(--g-hairline-strong);
+  outline-offset: 2px;
+}
+
+.plat-logo[hidden] { display: none; }
+
+/* The two fades are the only motion in this system; reduced-motion users
+   get instant state flips. */
+@media (prefers-reduced-motion: reduce) {
+  .plat-logo,
+  .plat-logo::after { transition: none; }
+}
+
+/* DOM contract (U2-rail-cards, U3-connect-flow and U4-platform-strip own
+   the DOM; this file only styles):
+   - One span per mark: class "plat-logo plat-logo-wa plat-logo-24
+     is-connected". Swap wa/tg per platform, 24/20 per surface, and the
+     state class per connection truth. Never stack two platform classes
+     or two state classes on one span.
+   - The span carries no text. Identity marks are aria-hidden true; the
+     interactive ones (U3 connect flow) carry role "button", tabindex 0
+     and an aria-label like "Connect Telegram" so the focus ring above
+     has something to ring.
+   - The state class is the only connection signal in this file; who
+     computes it (per user, per platform) is U2/U4 data work. */
+
+/* ---------- V14 U4: the platform logo system + the connected strip ---------- */
+
+/* The reusable platform logos (the U1-logo-assets contract, provisional
+   art here): one base class for shape, one modifier per platform carrying
+   the glyph, the same 32x32 SVG data URIs T4's pane header badges paint.
+   Sizes come from the context (20px in the rail strip, 1.6em = 24px at
+   the 15px pane base in the picker chips), so one asset serves every
+   surface. If U1 lands a builder under other names, alias it onto these
+   two modifier rules; every consumer below keeps working because the
+   class names stay. The two brand colors are the adapter spec's platform
+   data, not glass tokens. */
+.wab-plat-logo {
+  display: inline-block;
+  flex: 0 0 auto;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+}
+.wab-plat-logo-whatsapp {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cpath%20fill='%2325D366'%20fill-rule='evenodd'%20d='M16%204.6C10.1%204.6%205.2%209.3%205.2%2015.3%205.2%2017.6%205.9%2019.7%207.3%2021.4L5.7%2026.6%2011.1%2025.1C12.6%2025.9%2014.2%2026.4%2016%2026.4%2021.9%2026.4%2026.8%2021.5%2026.8%2015.5%2026.8%209.5%2021.9%204.6%2016%204.6ZM24.37%2016.23A8.4%208.4%200%200%200%2015.27%207.13L15.53%2010.12A5.4%205.4%200%200%201%2021.38%2015.97Z'/%3E%3C/svg%3E");
+}
+.wab-plat-logo-telegram {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cpath%20fill='%23229ED9'%20transform='rotate(-8%2016%2016)'%20d='M2.7%2028L30.7%2016%202.7%204%202.7%2013.3%2022.7%2016%202.7%2018.7Z'/%3E%3C/svg%3E");
+}
+
+/* The strip (render.js syncPlatformStrip appends it to #rail as the last
+   child): every CONNECTED platform as a 20px logo, one horizontal row at
+   the rail bottom, the desk's bottom-left corner. Only linked accounts
+   count, so an empty desk hides the strip wholesale. Clicking a logo
+   filters the people rail to that platform (the body-class rules at the
+   end of this section); the pressed button carries its platform brand
+   ring. Glass: rgba whites on the rail glass, hairline top like the old
+   rail-foot, no new tokens. */
+.wab-plat-strip {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto; /* pin to the rail bottom whatever the sections above do */
+  padding: 10px 16px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.wab-plat-strip[hidden] { display: none; }
+.wab-plat-strip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+.wab-plat-strip-btn:hover { background: rgba(255, 255, 255, 0.08); }
+.wab-plat-strip-btn:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.45);
+  outline-offset: 1px;
+}
+.wab-plat-strip .wab-plat-logo { width: 20px; height: 20px; }
+.wab-plat-strip-btn[aria-pressed="true"] { background: rgba(255, 255, 255, 0.10); }
+.wab-plat-strip-btn.is-whatsapp[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 1px rgba(37, 211, 102, 0.55);
+}
+.wab-plat-strip-btn.is-telegram[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 1px rgba(34, 158, 217, 0.55);
+}
+
+/* The rail fold (people.js toggles body.wab-rail-folded; shell.css
+   collapses the frame to 64px): the strip stacks its 20px logos
+   vertically, centered under the avatar column. The strip carries its own
+   class on purpose: shell.css hides .rail-foot when folded, and this
+   strip must survive the fold. */
+body.wab-rail-folded .wab-plat-strip {
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0 10px;
+}
+
+/* Maximized panes keep the rail as an icon column; the strip takes the
+   compact gutter the old rail-foot got there. */
+body.wab-maximized .wab-plat-strip { padding: 8px 10px; }
+
+/* The account picker chips (render.js buildPickerDom): the 24px logo
+   replaces T5's 4px dot as the platform identifier. 1.6em = 24px at the
+   15px pane base, em so it zooms with the pane like every pane-internal
+   size. The connect doors keep the dot: they are actions, not accounts,
+   and nothing stops a later stage from giving them logos too. */
+.rp-acc-chip .wab-plat-logo { width: 1.6em; height: 1.6em; }
+
+/* The rail filter (render.js togglePlatformFilter sets one body class):
+   CSS does the filtering, so it covers BOTH row owners (people.js rows
+   via row.dataset.platform, renderer takeover rows via the data-platform
+   attribute) and survives every rail re-render without a hook in
+   people.js. Scoped to the rail list only: the search palette stays
+   unfiltered. Rows carry data-platform since T5 and the value defaults
+   to whatsapp when the spine omits it, so no row is left unmatchable. */
+body.wab-plat-filter-whatsapp #people-list .people-row:not([data-platform="whatsapp"]),
+body.wab-plat-filter-telegram #people-list .people-row:not([data-platform="telegram"]) {
+  display: none;
+}
+
+/* DOM contract (U4-renderer owns render.js; this file only styles):
+   - #wab-plat-strip (class wab-plat-strip) is appended to #rail as the
+     last child by syncPlatformStrip and is the only writer of its
+     buttons. data-sig on the strip is the connected-set signature
+     (whatsapp,telegram); the buttons rebuild only when it changes.
+   - body carries at most one of wab-plat-filter-whatsapp /
+     wab-plat-filter-telegram, set by togglePlatformFilter; strip buttons
+     carry data-platform, the is-<platform> modifier and aria-pressed.
+   - Picker account chips hold one span.wab-plat-logo with the
+     wab-plat-logo-<platform> modifier exactly where T5's platformDotEl
+     sat, between the avatar and the name. */
