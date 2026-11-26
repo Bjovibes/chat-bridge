@@ -206,6 +206,29 @@
       </div>
     </section>
 
+    <!-- Consent portal: the partner's phone page. One invite link per account;
+         the partner opens it and picks the contacts to share. Default off. -->
+    <section>
+      <h3>Consent portal</h3>
+      <label class="field"><span class="field-label">Account</span>
+        <select id="portal-account"></select>
+      </label>
+      <p class="privacy-hint">The partner opens this on their phone and picks the contacts to share. They can turn it off anytime.</p>
+      <div id="portal-link-block" hidden>
+        <label class="field"><span class="field-label">Invite link</span>
+          <input id="portal-link" type="text" readonly autocomplete="off" onclick="this.select()">
+        </label>
+        <div class="modal-actions">
+          <button id="portal-copy" class="btn-ghost" type="button">Copy link</button>
+          <button id="portal-revoke" class="btn-danger" type="button">Revoke link</button>
+        </div>
+      </div>
+      <p id="portal-note" class="privacy-hint" hidden></p>
+      <div class="modal-actions">
+        <button id="portal-generate" class="btn-primary" type="button">Generate link</button>
+      </div>
+    </section>
+
     <section>
       <h3>Accounts</h3>
       <p class="privacy-hint">Add a sender account. The owner scans the QR from their own phone.</p>

@@ -118,7 +118,7 @@ Written for public consumption, because this repo is meant to be a public thing 
 3. **Unproven paths.** The send drill, live media decrypt, and Telegram history read are applied but not yet verified live. This is real software with real unknowns, listed rather than hidden.
 4. **Single operator machine.** One Windows machine, one desk. No cloud, no sync, no team mode.
 5. **The blindfold is a filter, not cryptography.** Restricted chats are excluded at the data layer on the operator's machine. That is a strong boundary, but the machine itself must be trusted. The consent portal (v2) moves the trust decision to the partner; it does not encrypt anything.
-6. **The send path does not yet re-check the blindfold.** Found in the 2026-11-24 audit: the people list filters restricted chats, but the send and read-message IPC doors trust the renderer. Until the guard lands, law 3 holds on the list path only. Fix is scheduled with the portal work, and it is listed here rather than hidden.
+6. **Blindfold door coverage: send, read and AI paths guarded since V14.4** (2026-11-26); the history, media and pre-open doors are not yet held to the same standard and are the next guard work. Listed here rather than hidden.
 6. **Windows only, for now.** Packaging for macOS is future work.
 7. **Electron fingerprints.** The engine rooms are Chromium views and can be fingerprinted as such by the platforms. We do not disguise this beyond normal browser behavior.
 
@@ -128,7 +128,7 @@ Written for public consumption, because this repo is meant to be a public thing 
 |---|---|---|
 | 0 | This PRD, laws 6 to 8, portal flow map | 2026-11-24 |
 | 1 | Send reliability drill, live media, Telegram history verification | pending operator hands |
-| 2 | Consent portal MVP: invite link, phone page, contact toggles, live apply | not started |
+| 2 | Consent portal MVP: invite link, phone page, contact toggles, live apply | **MVP built 2026-11-26 (V14.4)**: phone-first page served by the app on the LAN, tokens one-per-account, kill switch live. Not yet: passcode, TLS, internet tunnel, chatId-keyed consent |
 | 3 | Revocation semantics: mid-session cutoff, draft drop, ledger entry | not started |
 | 4 | macOS packaging | not started |
 | 5 | More platforms (the architecture allows more engine rooms) | exploratory |

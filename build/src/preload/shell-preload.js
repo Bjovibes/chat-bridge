@@ -28,6 +28,12 @@ contextBridge.exposeInMainWorld('wab', {
     set: (accountId, config) => ipcRenderer.invoke('privacy:set', { accountId, config }),
     listChats: (accountId) => ipcRenderer.invoke('privacy:listChats', { accountId })
   },
+  // Consent portal: invite links the partner opens on their phone.
+  portal: {
+    status: () => ipcRenderer.invoke('portal:status'),
+    createInvite: (accountId) => ipcRenderer.invoke('portal:createInvite', { accountId }),
+    revokeInvite: (accountId) => ipcRenderer.invoke('portal:revokeInvite', { accountId })
+  },
   ai: {
     getConfig: () => ipcRenderer.invoke('ai:config:get'),
     setConfig: (config) => ipcRenderer.invoke('ai:config:set', { config }),

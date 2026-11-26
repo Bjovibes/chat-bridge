@@ -3,6 +3,7 @@
 const { ipcMain } = require('electron');
 const store = require('./store');
 const sessions = require('./sessions');
+const portal = require('./portal/portal-server');
 const { callAI, DEFAULT_MODELS } = require('../ai/providers');
 const { buildPrompt } = require('../ai/commands');
 const { normalizeTitle } = require('../shared/normalize');
@@ -119,6 +120,24 @@ function registerAll() {
     return Array.isArray(res) ? res : [];
   });
 
+  // ---------- consent portal ----------
+  // The partner's phone page. portal-server owns the HTTP side; these
+  // channels only manage invite links (status, create, revoke).
+  ipcMain.handle('portal:status', () => portal.status());
+
+  ipcMain.handle('portal:createInvite', (_e, { accountId }) => {
+    const acc = store.getAccount(accountId);
+    if (!acc) return { ok: false, error: 'account not found' };
+    const invite = store.createInvite(accountId);   // replaces any old link
+    portal.logLanUrls();                            // print the fresh link(s) to the console
+    return { ok: true, invite, urls: portal.inviteUrls(invite.token) };
+  });
+
+  ipcMain.handle('portal:revokeInvite', (_e, { accountId }) => {
+    store.revokeInvite(accountId);                  // the link dies instantly (404)
+    return portal.status();
+  });
+
   // ---------- ai ----------
   ipcMain.handle('ai:config:get', () => {
     const cfg = store.getAIConfig();
@@ -163,6 +182,10 @@ function registerAll() {
             messages = msgs.slice(-(cfg.maxContextMessages || 40));
             contactName = title || 'this contact';
             got = true;
+          } else if (msgs && msgs.ok === false && msgs.error) {
+            // Refused read (blindfold or explicit failure): never fall through
+            // to a live DOM scrape of whatever chat happens to be open.
+            return { ok: false, error: msgs.error };
           }
         }
       }

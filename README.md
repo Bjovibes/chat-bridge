@@ -23,7 +23,7 @@ These are design laws, not settings. The code is shaped around them.
 
 ## Download (no coding needed)
 
-Grab the installer from [Releases](https://github.com/Bjovibes/chat-bridge/releases): download `Chat-Bridge-Setup-0.2.0.exe`, double-click, done. Windows 10/11, installs to your user folder, no admin needed.
+Grab the installer from [Releases](https://github.com/Bjovibes/chat-bridge/releases): download `Chat-Bridge-Setup-0.3.0.exe`, double-click, done. Windows 10/11, installs to your user folder, no admin needed.
 
 The app is unsigned, so Windows SmartScreen will say "Windows protected your PC". Click **More info** → **Run anyway** if you trust it. A signing certificate is future work.
 
@@ -56,7 +56,8 @@ Bring your own key: Settings, AI provider. OpenAI-compatible endpoints (OpenAI, 
 
 - **The blindfold is a filter, not cryptography.** Restricted chats are excluded at the data layer on the operator's machine. Someone with developer tools and bad intent on that machine could work around it. It is built for trust and against accidental glances. If you need hard guarantees, do not link the account.
 - **Ban risk is never zero.** The app loads official WhatsApp Web and Telegram Web exactly like a browser does, with genuine human input and zero automation. That is the lowest risk that exists. The platforms can still log devices out or restrict accounts at their own discretion. Running an account on behalf of another person sits in a gray zone of platform intent; know that before you link anything.
-- **Known gap, being fixed:** the send path does not yet re-check the blindfold (the people list does). Found in the 2026-11-24 audit, fix scheduled with the consent portal work.
+- **Blindfold coverage is now enforced on the send, read and AI paths** (v0.3.0): a restricted chat is refused loudly before anything happens. The history, media and pre-open doors are not yet guarded to the same standard; tracked in the PRD.
+- **The consent portal is an MVP and runs plain HTTP on your local network.** The invite link is the only credential: send it over a trusted channel, revoke and regenerate it if it leaks. No TLS, no passcode, not reachable from the internet without extra setup you control. The partner's page shows chat names and toggles only, never message content.
 - **The AI can be wrong.** Drafts are drafts. Read before you send. Lookup has no live web access in this version.
 - **Platform UI changes can break the reading layer.** The data spine reads platform internals. When they change, the app fails loudly instead of guessing. Fixes usually follow within days.
 - **Unproven paths, listed rather than hidden:** the send reliability drill is not yet 10/10 verified live, inline media decrypt is untested against a real photo, and the Telegram history read is applied but unverified.

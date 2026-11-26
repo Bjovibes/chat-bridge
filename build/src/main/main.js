@@ -62,6 +62,16 @@ if (!gotLock) {
     sessions.startTypingPoll();
     sessions.startWatchdog();
 
+    // Consent portal: the partner's phone page. Best effort by law: the desk
+    // boots and works even when the port is taken or the server fails; every
+    // failure is logged with the [portal] prefix, never thrown.
+    try {
+      const portal = require('./portal/portal-server');
+      portal.start();
+    } catch (e) {
+      console.error('[portal] could not start the consent portal:', e && e.message);
+    }
+
     // Pushed to the shell after it loads so early events are not lost.
     ipcMainFlushEvents(push);
 

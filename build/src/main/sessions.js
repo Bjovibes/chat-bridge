@@ -280,6 +280,21 @@ function chatAllowed(accountId, title) {
   return true;
 }
 
+// Blindfold door for the per-chat engine calls (send + read). engPeople
+// filters a LIST it already holds titles for; engSend and engMessages name
+// the target by chat id, so the title comes from the engine's own roster
+// first (authoritative: a caller-supplied name must never walk an allowed
+// title into a restricted chat), with the caller's title as fallback when
+// the roster misses. Fail-closed in allow mode: a title that cannot be
+// resolved matches no allow entry, so the door refuses it.
+async function chatRestricted(accountId, chatId, title) {
+  const cfg = store.getPrivacy(accountId);
+  if (cfg.mode !== 'allow' && cfg.mode !== 'deny') return false;   // no blindfold active: skip the roster read
+  let t = await resolveChatTitle(accountId, chatId);   // ONE bounded roster read; compare-only, never logged
+  if (!t) t = String(title == null ? '' : title);
+  return !chatAllowed(accountId, t);
+}
+
 // v3 avatars: pulled from each engine's rendered chat list, cached on disk.
 // v12.1: people serve INSTANTLY from whatever cache exists (age only gates the
 // background re-pull); faces refresh in the background and push an update event.
@@ -403,6 +418,13 @@ async function engMessages(accountId, chatId, limit) {
   if (flags.mock) {
     const fx = loadFixtures();
     return (fx.messages && fx.messages[chatId]) || [];
+  }
+  // Blindfold door: the same law that filters the people list gates the read.
+  // A restricted chat answers an explicit failure object, never an empty
+  // array (an empty array would render as a normal quiet chat and hide the
+  // refusal, which breaks the fail loud law).
+  if (await chatRestricted(accountId, chatId, '')) {
+    return { ok: false, error: 'blindfold: this chat is restricted by the account owner' };
   }
   const res = await engCall(accountId,
     `(function(){try{return window.__wabEng.getMessages(${JSON.stringify(String(chatId))}, ${cap});}catch(e){return {ok:false,error:'engine read failed'};}})()`);
@@ -1046,9 +1068,17 @@ async function engSend(accountId, chatId, text, title) {
     await new Promise(r => setTimeout(r, 800));
     return { ok: true, echo: true };
   }
-  // Blindfold door: cannot send into a chat the blindfold hides.
+  // Blindfold door: cannot send into a chat the blindfold hides. ENFORCED,
+  // not just claimed: the same chatAllowed law that filters the people list
+  // runs here first, on the roster's own title for this chat id, so a
+  // restricted chat is refused before any open, typing, clipboard write,
+  // engine call or ledger row can happen.
   const acc = store.getAccount(accountId);
   if (!acc) return { ok: false, error: 'unknown account' };
+  if (await chatRestricted(accountId, chatId, title)) {
+    debugEvent('send-step', accountId, 'send refused by the blindfold (restricted chat)');
+    return { ok: false, error: 'blindfold: this chat is restricted by the account owner' };
+  }
   if (preOpened.get(accountId) !== chatId) {
     debugEvent('send-step', accountId, 'engine not on this chat, opening');
     // v14 T3: Telegram opens through the adapter (the WA real-input

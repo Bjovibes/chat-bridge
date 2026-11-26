@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.0-beta (2026-11-26)
+- **Consent portal MVP**: the account owner opens an invite link on their phone and picks exactly which contacts the operator may see. Save writes through the live privacy pipeline; "Turn it all off" zeroes it anytime. Settings > Privacy > Consent portal: Generate / Copy / Revoke. Plain HTTP on the LAN; the link is the credential.
+- **Blindfold guard enforced**: sends, message reads and AI context reads now refuse restricted chats loudly, fail-closed on unresolvable titles. The renderer surfaces the refusal reason.
+
 ## v0.2.0-beta (2026-11-25)
 - First packaged release: Windows NSIS installer (Chat-Bridge-Setup-0.2.0.exe) on the GitHub Releases page. App icon (bridge arch, three typing dots) wired through the installer and window.
 

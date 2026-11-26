@@ -109,7 +109,9 @@
     aiTest: null, aiSave: null, aiTestResult: null,
     privacyAccount: null, privacyMode: null, privacyChats: null,
     privacyHint: null, privacySave: null,
-    settingsAddAccount: null
+    settingsAddAccount: null,
+    portalAccount: null, portalLink: null, portalLinkBlock: null,
+    portalCopy: null, portalRevoke: null, portalGenerate: null, portalNote: null
   };
 
   var slots = []; // .slot divs in order
@@ -220,6 +222,14 @@
     el.privacyFilter = $('privacy-filter');
     el.privacySave = $('privacy-save');
     el.settingsAddAccount = $('settings-add-account');
+    // Consent portal block (mirrors the privacy refs).
+    el.portalAccount = $('portal-account');
+    el.portalLink = $('portal-link');
+    el.portalLinkBlock = $('portal-link-block');
+    el.portalCopy = $('portal-copy');
+    el.portalRevoke = $('portal-revoke');
+    el.portalGenerate = $('portal-generate');
+    el.portalNote = $('portal-note');
     // v12 S4: grid4/grid6 need the 6th slot and their toolbar buttons before
     // slots are collected and mode buttons are wired. V12.3 W1: the bottom
     // switcher dies before anything can show it.
@@ -816,6 +826,7 @@
     renderTabstrip();
     renderEmptyState();
     if (el.privacyAccount && !el.settings.hidden) refreshPrivacyAccountSelect();
+    if (el.portalAccount && !el.settings.hidden) refreshPortalAccountSelect();
   }
 
   /* ---------- layout ---------- */
@@ -1420,8 +1431,10 @@
   function openSettings() {
     el.settings.hidden = false;
     refreshPrivacyAccountSelect();
+    refreshPortalAccountSelect();
     loadAiConfig();
     loadPrivacy();
+    loadPortal();
     try { if (window.wab && window.wab.app.setOverlayVisible) window.wab.app.setOverlayVisible(true); } catch (e) { /* optional */ }
   }
 
@@ -1698,6 +1711,142 @@
       });
   }
 
+  /* ---------- consent portal ---------- */
+  // One invite link per account. The partner opens it on their phone and
+  // picks the contacts to share; revoking kills the link instantly.
+
+  function portalAccountId() {
+    return el.portalAccount ? (el.portalAccount.value || null) : null;
+  }
+
+  function refreshPortalAccountSelect() {
+    if (!el.portalAccount) return;
+    var prev = el.portalAccount.value;
+    el.portalAccount.textContent = '';
+    if (accounts.length === 0) {
+      var opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'No accounts yet';
+      el.portalAccount.appendChild(opt);
+      if (el.portalGenerate) el.portalGenerate.disabled = true;
+      return;
+    }
+    accounts.forEach(function (acc) {
+      var o = document.createElement('option');
+      o.value = acc.id;
+      o.textContent = acc.name || 'Account';
+      el.portalAccount.appendChild(o);
+    });
+    if (el.portalGenerate) el.portalGenerate.disabled = false;
+    if (prev && accountById(prev)) el.portalAccount.value = prev;
+  }
+
+  var portalLoadedFor = null;
+
+  function portalNoteText(text, fail) {
+    if (!el.portalNote) return;
+    el.portalNote.hidden = !text;
+    el.portalNote.className = fail ? 'test-result fail' : 'privacy-hint';
+    el.portalNote.textContent = text || '';
+  }
+
+  function renderPortalStatus(st, accId) {
+    if (!st) return;
+    if (!st.running) {
+      portalNoteText('The consent portal server is not running. Restart the app and check the console.', true);
+    } else {
+      portalNoteText('', false);
+    }
+    var inv = st.invites && st.invites[accId];
+    if (inv && inv.urls && inv.urls.length) {
+      el.portalLink.value = inv.urls[0];
+      el.portalLink.title = inv.urls.length > 1
+        ? 'Other possible links: ' + inv.urls.slice(1).join(' ')
+        : '';
+      el.portalLinkBlock.hidden = false;
+      el.portalGenerate.hidden = true;
+      el.portalRevoke.hidden = false;
+    } else {
+      el.portalLink.value = '';
+      el.portalLink.title = '';
+      el.portalLinkBlock.hidden = true;
+      el.portalGenerate.hidden = false;
+      el.portalRevoke.hidden = true;
+    }
+  }
+
+  function loadPortal() {
+    var accId = portalAccountId();
+    portalLoadedFor = accId;
+    portalNoteText('', false);
+    el.portalLinkBlock.hidden = true;
+    el.portalGenerate.hidden = !accId;
+    el.portalRevoke.hidden = true;
+    if (!accId) return;
+    if (!wabOk() || !window.wab.portal || typeof window.wab.portal.status !== 'function') {
+      portalNoteText('Portal tools did not load. Restart the app.', true);
+      return;
+    }
+    call(function () { return window.wab.portal.status(); }, 'Could not load the consent portal')
+      .then(function (st) {
+        if (portalLoadedFor !== accId) return;
+        renderPortalStatus(st, accId);
+      });
+  }
+
+  function generatePortalInvite() {
+    var accId = portalAccountId();
+    if (!accId) return;
+    el.portalGenerate.disabled = true;
+    call(function () { return window.wab.portal.createInvite(accId); }, 'Could not create the link')
+      .then(function (res) {
+        el.portalGenerate.disabled = false;
+        if (!res || !res.ok) {
+          portalNoteText((res && res.error) || 'Could not create the link.', true);
+          return;
+        }
+        toast('Portal link created. It is printed in the console too.');
+        loadPortal();
+      });
+  }
+
+  function revokePortalInvite() {
+    var accId = portalAccountId();
+    if (!accId) return;
+    el.portalRevoke.disabled = true;
+    call(function () { return window.wab.portal.revokeInvite(accId); }, 'Could not revoke the link')
+      .then(function () {
+        el.portalRevoke.disabled = false;
+        toast('Portal link revoked');
+        loadPortal();
+      });
+  }
+
+  function copyPortalLinkFallback(text) {
+    try {
+      el.portalLink.focus();
+      el.portalLink.select();
+      document.execCommand('copy');
+      toast('Invite link copied');
+    } catch (e) {
+      toast('Copy failed. Select the link and copy it by hand.');
+    }
+  }
+
+  function copyPortalLink() {
+    var text = el.portalLink ? el.portalLink.value : '';
+    if (!text) return;
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      navigator.clipboard.writeText(text).then(function () {
+        toast('Invite link copied');
+      }, function () {
+        copyPortalLinkFallback(text);
+      });
+    } else {
+      copyPortalLinkFallback(text);
+    }
+  }
+
   /* ---------- wiring ---------- */
 
   function wire() {
@@ -1775,6 +1924,12 @@
         renderPrivacyChats(privacyChatsCache);
       });
     }
+
+    // Consent portal block: switch account, generate, copy, revoke.
+    if (el.portalAccount) el.portalAccount.addEventListener('change', loadPortal);
+    if (el.portalGenerate) el.portalGenerate.addEventListener('click', generatePortalInvite);
+    if (el.portalCopy) el.portalCopy.addEventListener('click', copyPortalLink);
+    if (el.portalRevoke) el.portalRevoke.addEventListener('click', revokePortalInvite);
 
     document.addEventListener('click', function (ev) {
       if (!el.ctxMenu.hidden && !el.ctxMenu.contains(ev.target)) closeCtxMenu();

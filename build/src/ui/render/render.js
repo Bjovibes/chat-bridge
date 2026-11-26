@@ -2240,7 +2240,10 @@
         if (!Array.isArray(res)) {
           // V12.6 Z2 law: a non-array is a failure, never a quiet '[]'.
           debugStep('engine-error', acctId, 'read failed (non-array)');
-          setState(slot, { state: 'error', message: 'Messages came back in an unexpected shape. Press Retry.' });
+          // Surface the spine's own reason when it sent one (e.g. the blindfold
+          // refusing a restricted chat) instead of a generic shape error.
+          const reason = (res && res.ok === false && res.error) ? res.error : '';
+          setState(slot, { state: 'error', message: reason || 'Messages came back in an unexpected shape. Press Retry.' });
           return;
         }
         // Reply detection: the first page of a conversation only seeds the

@@ -2,6 +2,7 @@
 const { app } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const FILE = path.join(app.getPath('userData'), 'wa-bridge.json');
 
@@ -20,7 +21,8 @@ const DEFAULTS = () => ({
   panePrefs: {},                 // v3: slot -> { zoom, minimized }
   sentLog: [],                   // v12.7: operator's own send history (metadata only)
   brain: { tone: '', notes: {} },// v12.7: the sidekick's persistent memory
-  usage: { calls: 0, lastCallAt: null }
+  usage: { calls: 0, lastCallAt: null },
+  portal: { invites: {} }        // consent portal: accountId -> { token, createdAt }
 });
 
 let state = DEFAULTS();
@@ -33,6 +35,8 @@ function load() {
       state = Object.assign(DEFAULTS(), raw);
       state.ai = Object.assign(DEFAULTS().ai, raw.ai || {});
       state.usage = Object.assign(DEFAULTS().usage, raw.usage || {});
+      state.portal = Object.assign(DEFAULTS().portal, raw.portal || {});
+      if (!state.portal.invites || typeof state.portal.invites !== 'object') state.portal.invites = {};
     }
   } catch (e) {
     // Corrupt store: start fresh rather than die. Loud in console, app keeps working.
@@ -139,6 +143,7 @@ function getAccount(id) { return state.accounts.find(a => a.id === id) || null; 
 function removeAccount(id) {
   state.accounts = state.accounts.filter(a => a.id !== id);
   delete state.privacy[id];
+  if (state.portal && state.portal.invites) delete state.portal.invites[id];   // dead invite = dead link
   save();
 }
 
@@ -159,6 +164,50 @@ function setPrivacy(accountId, config) {
   state.privacy[accountId] = clean;
   save();
   return clean;
+}
+
+// --- consent portal invites ---
+// One invite per account: a 32-char hex token in the URL the partner opens
+// on their phone. Creating a new invite for an account replaces the old one
+// (the old link dies). getInvite returns a COPY: callers never mutate state.
+function getInvite(accountId) {
+  const inv = (state.portal && state.portal.invites || {})[accountId];
+  return inv ? Object.assign({}, inv) : null;
+}
+
+function createInvite(accountId) {
+  const token = crypto.randomBytes(16).toString('hex');   // 32 hex chars, one shot
+  if (!state.portal || typeof state.portal !== 'object') state.portal = { invites: {} };
+  if (!state.portal.invites || typeof state.portal.invites !== 'object') state.portal.invites = {};
+  state.portal.invites[accountId] = { token, createdAt: new Date().toISOString() };
+  save();
+  return getInvite(accountId);
+}
+
+function revokeInvite(accountId) {
+  if (state.portal && state.portal.invites && state.portal.invites[accountId]) {
+    delete state.portal.invites[accountId];
+    save();
+  }
+  return { ok: true };
+}
+
+// Reverse lookup for the portal server: token -> account. Constant-time
+// compare so a probe cannot time-search character by character.
+function findInviteByToken(token) {
+  const t = String(token || '');
+  const invites = (state.portal && state.portal.invites) || {};
+  for (const accountId of Object.keys(invites)) {
+    const inv = invites[accountId];
+    if (inv && typeof inv.token === 'string' && inv.token.length === t.length) {
+      try {
+        if (crypto.timingSafeEqual(Buffer.from(inv.token), Buffer.from(t))) {
+          return { accountId, token: inv.token, createdAt: inv.createdAt || null };
+        }
+      } catch (eC) { /* length mismatch is already guarded; skip */ }
+    }
+  }
+  return null;
 }
 
 // --- prefs (v2) ---
@@ -272,6 +321,7 @@ module.exports = {
   listAccounts, getAccount, upsertAccount, removeAccount,
   getUsers, getUser, addUser,
   getPrivacy, setPrivacy,
+  getInvite, createInvite, revokeInvite, findInviteByToken,
   getPrefs, setPrefs, getPanePrefs, setPanePrefs,
   logSend, sentStats, getBrain, setBrain,
   getAIConfig, setAIConfig, bumpUsage
