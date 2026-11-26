@@ -15,7 +15,8 @@ Read this before touching anything. It is short on purpose.
 
 ## Map
 
-- `build/src/main/sessions.js` — the spine: engine rooms (hidden WebContentsViews), data reads, blindfold filter, real-click opens, clipboard-paste sends
+- `build/src/main/sessions.js` — the spine: engine rooms (hidden WebContentsViews), data reads, blindfold filter (enforced on list, send, read and AI paths), real-click opens, clipboard-paste sends
+- `build/src/main/portal/` — the consent portal: phone-first page + HTTP server (port 47120) where partners toggle contact-level consent
 - `build/src/main/engine/` — injected into the platform pages: `engine-inject.js` (WhatsApp bridge), `telegram-inject.js` (Telegram bridge)
 - `build/src/main/inject/` — DOM-layer guards (privacy curtain, open-chat, scraper, declutter)
 - `build/src/main/{main,windows,ipc,store}.js` — entry, window tree, IPC channels, JSON store
