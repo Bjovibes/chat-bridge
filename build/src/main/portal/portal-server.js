@@ -10,6 +10,7 @@ const http = require('http');
 const os = require('os');
 const store = require('../store');
 const sessions = require('../sessions');
+const tunnel = require('./remote-tunnel');   // read-only here: the tunnel itself is started on demand via ipc
 const { PORTAL_HTML } = require('./portal-page');
 
 const PORT = 47120;                 // documented constant: the consent portal port
@@ -149,22 +150,33 @@ function ipv4Addresses() {
   return out;
 }
 
+// Invite URLs for a token: every LAN URL, plus the public tunnel URL when
+// the remote tunnel is running. public stays null while the tunnel is off,
+// so nothing ever shows a public link that does not work.
 function inviteUrls(token) {
-  return ipv4Addresses().map((ip) => 'http://' + ip + ':' + PORT + '/' + token);
+  const t = tunnel.status();
+  return {
+    lan: ipv4Addresses().map((ip) => 'http://' + ip + ':' + PORT + '/' + token),
+    public: (t.running && t.url) ? (t.url + '/' + token) : null
+  };
 }
 
 // Boot + create-time affordance: print every phone-usable URL to the console.
 function logLanUrls() {
   const ips = ipv4Addresses();
+  const t = tunnel.status();
   for (const acc of store.listAccounts()) {
     const invite = store.getInvite(acc.id);
     if (!invite) continue;
     if (!ips.length) {
-      console.error('[portal] no LAN IPv4 address found, cannot print a link for ' + acc.name);
-      continue;
+      console.error('[portal] no LAN IPv4 address found, cannot print a LAN link for ' + acc.name);
+    } else {
+      for (const ip of ips) {
+        console.log('[portal] ' + acc.name + ' link: http://' + ip + ':' + PORT + '/' + invite.token);
+      }
     }
-    for (const ip of ips) {
-      console.log('[portal] ' + acc.name + ' link: http://' + ip + ':' + PORT + '/' + invite.token);
+    if (t.running && t.url) {
+      console.log('[portal] ' + acc.name + ' public link: ' + t.url + '/' + invite.token);
     }
   }
 }
@@ -297,7 +309,7 @@ function status() {
       urls: inviteUrls(invite.token)
     };
   }
-  return { running, port: PORT, invites };
+  return { running, port: PORT, remote: tunnel.status(), invites };
 }
 
 module.exports = { start, status, inviteUrls, logLanUrls, PORT };

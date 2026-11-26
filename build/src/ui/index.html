@@ -227,6 +227,26 @@
       <div class="modal-actions">
         <button id="portal-generate" class="btn-primary" type="button">Generate link</button>
       </div>
+
+      <!-- Remote access: a free public HTTPS tunnel (cloudflared quick tunnel)
+           so a partner outside the local network can open the invite link.
+           Off by default; it runs only while the desk runs. -->
+      <div id="portal-remote-block">
+        <p class="field-label">Remote access</p>
+        <p id="portal-remote-status" class="privacy-hint">Remote access is off.</p>
+        <div id="portal-public-link-block" hidden>
+          <label class="field"><span class="field-label">Public invite link</span>
+            <input id="portal-public-link" type="text" readonly autocomplete="off" onclick="this.select()">
+          </label>
+          <p class="privacy-hint">Send this to a partner in another country. It works while the desk is running.</p>
+          <div class="modal-actions">
+            <button id="portal-public-copy" class="btn-ghost" type="button">Copy link</button>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button id="portal-remote-toggle" class="btn-ghost" type="button">Start remote access</button>
+        </div>
+      </div>
     </section>
 
     <section>

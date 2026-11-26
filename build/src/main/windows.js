@@ -59,10 +59,10 @@ function createShell() {
 function createQrWindow(account) {
   const platformName = (account && account.platform === 'telegram') ? 'Telegram' : 'WhatsApp';
   const qr = new BrowserWindow({
-    width: 460,
-    height: 680,
-    minWidth: 420,
-    minHeight: 560,
+    width: 540,
+    height: 800,
+    minWidth: 500,
+    minHeight: 660,
     show: false,
     backgroundColor: '#12140b',
     title: 'Link ' + account.name + ' : scan the ' + platformName + ' QR',
@@ -96,6 +96,11 @@ function createQrWindow(account) {
     '<p>' + platformName + ((account && account.platform === 'telegram')
       ? ', Settings, Devices, Link Desktop Device.'
       : ', Settings, Linked devices, Link a device.') + '</p>',
+    // Phone-code path for remote partners (WhatsApp only): they cannot scan
+    // this QR from another country, so they read out a code instead.
+    ((account && account.platform === 'telegram')
+      ? ''
+      : '<p class="note">Remote partner: on their phone, WhatsApp, Settings, Linked devices, Link a device, Link with phone number instead. They read you the code, you type it here.</p>'),
     '<p class="note">Only link an account whose owner explicitly authorized you. They can unlink anytime from their phone.</p>',
     '</div></body></html>'
   ].join('')));

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.0-beta (2026-11-26)
+- **Remote access**: partners in another country can now open the consent portal. Settings > Consent portal > Remote access starts a free Cloudflare quick tunnel and shows the public invite link. Works while the desk runs; the URL changes on restart. Requires cloudflared.exe in build/tools (see README).
+- **Remote linking made plain**: the link window is bigger and prints the WhatsApp phone-code path (Linked devices > Link a device > Link with phone number instead). The partner reads the code on a call; the operator types it. No QR scanning across distance.
+
 ## v0.3.0-beta (2026-11-26)
 - **Consent portal MVP**: the account owner opens an invite link on their phone and picks exactly which contacts the operator may see. Save writes through the live privacy pipeline; "Turn it all off" zeroes it anytime. Settings > Privacy > Consent portal: Generate / Copy / Revoke. Plain HTTP on the LAN; the link is the credential.
 - **Blindfold guard enforced**: sends, message reads and AI context reads now refuse restricted chats loudly, fail-closed on unresolvable titles. The renderer surfaces the refusal reason.

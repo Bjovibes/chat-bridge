@@ -29,10 +29,14 @@ contextBridge.exposeInMainWorld('wab', {
     listChats: (accountId) => ipcRenderer.invoke('privacy:listChats', { accountId })
   },
   // Consent portal: invite links the partner opens on their phone.
+  // remoteStart/remoteStop drive the public HTTPS tunnel (cloudflared quick
+  // tunnel) for partners outside the LAN; status carries remote: {running, url}.
   portal: {
     status: () => ipcRenderer.invoke('portal:status'),
     createInvite: (accountId) => ipcRenderer.invoke('portal:createInvite', { accountId }),
-    revokeInvite: (accountId) => ipcRenderer.invoke('portal:revokeInvite', { accountId })
+    revokeInvite: (accountId) => ipcRenderer.invoke('portal:revokeInvite', { accountId }),
+    remoteStart: () => ipcRenderer.invoke('portal:remoteStart'),
+    remoteStop: () => ipcRenderer.invoke('portal:remoteStop')
   },
   ai: {
     getConfig: () => ipcRenderer.invoke('ai:config:get'),

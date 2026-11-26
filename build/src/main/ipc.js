@@ -4,6 +4,7 @@ const { ipcMain } = require('electron');
 const store = require('./store');
 const sessions = require('./sessions');
 const portal = require('./portal/portal-server');
+const tunnel = require('./portal/remote-tunnel');
 const { callAI, DEFAULT_MODELS } = require('../ai/providers');
 const { buildPrompt } = require('../ai/commands');
 const { normalizeTitle } = require('../shared/normalize');
@@ -47,7 +48,7 @@ function registerAll() {
     const rec = sessions.createSession(account, qr);
     // The QR window hosts the view until the partner scans; view then moves to the shell.
     qr.on('ready-to-show', () => {
-      try { qr.contentView.addChildView(rec.view); rec.view.setBounds({ x: 0, y: 0, width: 440, height: 640 }); } catch (e) { /* window race */ }
+      try { qr.contentView.addChildView(rec.view); rec.view.setBounds({ x: 0, y: 0, width: 520, height: 740 }); } catch (e) { /* window race */ }
     });
     qr.on('close', () => {
       // Closing a window destroys its views. Detach first so the session survives
@@ -91,7 +92,7 @@ function registerAll() {
     const qr = createQrWindow(linking);
     const rec = sessions.createSession(linking, qr);
     qr.on('ready-to-show', () => {
-      try { qr.contentView.addChildView(rec.view); rec.view.setBounds({ x: 0, y: 0, width: 440, height: 640 }); } catch (e) { /* window race */ }
+      try { qr.contentView.addChildView(rec.view); rec.view.setBounds({ x: 0, y: 0, width: 520, height: 740 }); } catch (e) { /* window race */ }
     });
     qr.on('close', () => {
       try { qr.contentView.removeChildView(rec.view); } catch (e) { /* already detached */ }
@@ -136,6 +137,31 @@ function registerAll() {
   ipcMain.handle('portal:revokeInvite', (_e, { accountId }) => {
     store.revokeInvite(accountId);                  // the link dies instantly (404)
     return portal.status();
+  });
+
+  // Remote access: the cloudflared quick tunnel that puts the portal on a
+  // public https URL for partners outside the LAN. Started strictly on
+  // demand from Settings, never at boot; one tunnel for the whole desk.
+  ipcMain.handle('portal:remoteStart', async () => {
+    try {
+      const res = await tunnel.start();
+      return { ok: true, url: res.url };
+    } catch (e) {
+      const msg = (e && e.message) ? e.message : 'the remote tunnel could not start';
+      console.error('[portal] remote tunnel failed to start: ' + msg);
+      return { ok: false, error: msg };
+    }
+  });
+
+  ipcMain.handle('portal:remoteStop', () => {
+    try {
+      tunnel.stop();
+      return { ok: true };
+    } catch (e) {
+      const msg = (e && e.message) ? e.message : 'the remote tunnel could not stop';
+      console.error('[portal] remote tunnel failed to stop: ' + msg);
+      return { ok: false, error: msg };
+    }
   });
 
   // ---------- ai ----------

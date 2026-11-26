@@ -111,7 +111,9 @@
     privacyHint: null, privacySave: null,
     settingsAddAccount: null,
     portalAccount: null, portalLink: null, portalLinkBlock: null,
-    portalCopy: null, portalRevoke: null, portalGenerate: null, portalNote: null
+    portalCopy: null, portalRevoke: null, portalGenerate: null, portalNote: null,
+    portalRemoteBlock: null, portalRemoteStatus: null, portalRemoteToggle: null,
+    portalPublicLinkBlock: null, portalPublicLink: null, portalPublicCopy: null
   };
 
   var slots = []; // .slot divs in order
@@ -230,6 +232,13 @@
     el.portalRevoke = $('portal-revoke');
     el.portalGenerate = $('portal-generate');
     el.portalNote = $('portal-note');
+    // Remote access row (public HTTPS tunnel for partners outside the LAN).
+    el.portalRemoteBlock = $('portal-remote-block');
+    el.portalRemoteStatus = $('portal-remote-status');
+    el.portalRemoteToggle = $('portal-remote-toggle');
+    el.portalPublicLinkBlock = $('portal-public-link-block');
+    el.portalPublicLink = $('portal-public-link');
+    el.portalPublicCopy = $('portal-public-copy');
     // v12 S4: grid4/grid6 need the 6th slot and their toolbar buttons before
     // slots are collected and mode buttons are wired. V12.3 W1: the bottom
     // switcher dies before anything can show it.
@@ -1435,11 +1444,13 @@
     loadAiConfig();
     loadPrivacy();
     loadPortal();
+    startPortalPolling();
     try { if (window.wab && window.wab.app.setOverlayVisible) window.wab.app.setOverlayVisible(true); } catch (e) { /* optional */ }
   }
 
   function closeSettings() {
     el.settings.hidden = true;
+    stopPortalPolling();
     try { if (window.wab && window.wab.app.setOverlayVisible) window.wab.app.setOverlayVisible(false); } catch (e) { /* optional */ }
   }
 
@@ -1758,21 +1769,22 @@
       portalNoteText('', false);
     }
     var inv = st.invites && st.invites[accId];
-    if (inv && inv.urls && inv.urls.length) {
-      el.portalLink.value = inv.urls[0];
-      el.portalLink.title = inv.urls.length > 1
-        ? 'Other possible links: ' + inv.urls.slice(1).join(' ')
+    var urls = (inv && inv.urls) || {};
+    var lan = Array.isArray(urls.lan) ? urls.lan : [];
+    if (inv && lan.length) {
+      el.portalLink.value = lan[0];
+      el.portalLink.title = lan.length > 1
+        ? 'Other possible links: ' + lan.slice(1).join(' ')
         : '';
       el.portalLinkBlock.hidden = false;
-      el.portalGenerate.hidden = true;
-      el.portalRevoke.hidden = false;
     } else {
       el.portalLink.value = '';
       el.portalLink.title = '';
       el.portalLinkBlock.hidden = true;
-      el.portalGenerate.hidden = false;
-      el.portalRevoke.hidden = true;
     }
+    el.portalGenerate.hidden = !accId || !!inv;
+    el.portalRevoke.hidden = !inv;
+    renderPortalRemote(st);
   }
 
   function loadPortal() {
@@ -1782,7 +1794,6 @@
     el.portalLinkBlock.hidden = true;
     el.portalGenerate.hidden = !accId;
     el.portalRevoke.hidden = true;
-    if (!accId) return;
     if (!wabOk() || !window.wab.portal || typeof window.wab.portal.status !== 'function') {
       portalNoteText('Portal tools did not load. Restart the app.', true);
       return;
@@ -1792,6 +1803,104 @@
         if (portalLoadedFor !== accId) return;
         renderPortalStatus(st, accId);
       });
+  }
+
+  /* ---------- remote access (public tunnel) ---------- */
+  // One cloudflared quick tunnel for the whole desk. The Settings row starts
+  // and stops it on demand; the public invite link is the tunnel URL plus
+  // the account token. The status poll keeps the row honest while Settings
+  // is open, so a tunnel that died mid-session stops advertising its link.
+
+  var remoteBusy = false;
+  var remoteRunning = false;
+  var remoteUrl = null;
+  var portalPollTimer = null;
+
+  function paintRemoteRow() {
+    if (!el.portalRemoteToggle) return;
+    el.portalRemoteToggle.disabled = remoteBusy;
+    el.portalRemoteToggle.textContent = remoteBusy
+      ? 'Working...'
+      : (remoteRunning ? 'Stop remote access' : 'Start remote access');
+    if (el.portalRemoteStatus) {
+      el.portalRemoteStatus.textContent = (remoteRunning && remoteUrl)
+        ? 'Remote access is on: ' + remoteUrl
+        : 'Remote access is off. Start it to get a public link that works outside your network.';
+    }
+  }
+
+  function renderPortalRemote(st) {
+    var rem = (st && st.remote) || {};
+    remoteRunning = !!rem.running;
+    remoteUrl = rem.url || null;
+    paintRemoteRow();
+    // The full public invite link shows only when BOTH the tunnel is live
+    // AND an invite exists for the selected account.
+    var accId = portalAccountId();
+    var inv = st && st.invites && st.invites[accId];
+    var urls = (inv && inv.urls) || {};
+    var pub = (remoteRunning && remoteUrl && urls.public) ? urls.public : null;
+    if (el.portalPublicLink) el.portalPublicLink.value = pub || '';
+    if (el.portalPublicLinkBlock) el.portalPublicLinkBlock.hidden = !pub;
+  }
+
+  function startRemoteAccess() {
+    if (remoteBusy) return;
+    if (!wabOk() || !window.wab.portal || typeof window.wab.portal.remoteStart !== 'function') {
+      portalNoteText('Remote access tools did not load. Restart the app.', true);
+      return;
+    }
+    remoteBusy = true;
+    paintRemoteRow();
+    call(function () { return window.wab.portal.remoteStart(); }, 'Could not start remote access')
+      .then(function (res) {
+        remoteBusy = false;
+        if (!res || !res.ok) {
+          portalNoteText((res && res.error) || 'Could not start remote access.', true);
+          paintRemoteRow();
+          return;
+        }
+        toast('Remote access is live');
+        loadPortal();
+      });
+  }
+
+  function stopRemoteAccess() {
+    if (remoteBusy) return;
+    if (!wabOk() || !window.wab.portal || typeof window.wab.portal.remoteStop !== 'function') {
+      portalNoteText('Remote access tools did not load. Restart the app.', true);
+      return;
+    }
+    remoteBusy = true;
+    paintRemoteRow();
+    call(function () { return window.wab.portal.remoteStop(); }, 'Could not stop remote access')
+      .then(function (res) {
+        remoteBusy = false;
+        if (!res || !res.ok) {
+          portalNoteText((res && res.error) || 'Could not stop remote access.', true);
+        } else {
+          toast('Remote access stopped');
+        }
+        loadPortal();
+      });
+  }
+
+  function startPortalPolling() {
+    if (portalPollTimer) return;
+    portalPollTimer = window.setInterval(function () {
+      if (!el.settings || el.settings.hidden) return;
+      if (!wabOk() || !window.wab.portal || typeof window.wab.portal.status !== 'function') return;
+      window.wab.portal.status().then(function (st) {
+        if (!st || !el.settings || el.settings.hidden) return;
+        renderPortalRemote(st);
+      }).catch(function () { /* transient poll miss; the next tick retries */ });
+    }, 5000);
+  }
+
+  function stopPortalPolling() {
+    if (!portalPollTimer) return;
+    window.clearInterval(portalPollTimer);
+    portalPollTimer = null;
   }
 
   function generatePortalInvite() {
@@ -1844,6 +1953,31 @@
       });
     } else {
       copyPortalLinkFallback(text);
+    }
+  }
+
+  function copyPortalPublicFallback() {
+    try {
+      el.portalPublicLink.focus();
+      el.portalPublicLink.select();
+      document.execCommand('copy');
+      toast('Public invite link copied');
+    } catch (e) {
+      toast('Copy failed. Select the link and copy it by hand.');
+    }
+  }
+
+  function copyPortalPublicLink() {
+    var text = el.portalPublicLink ? el.portalPublicLink.value : '';
+    if (!text) return;
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      navigator.clipboard.writeText(text).then(function () {
+        toast('Public invite link copied');
+      }, function () {
+        copyPortalPublicFallback();
+      });
+    } else {
+      copyPortalPublicFallback();
     }
   }
 
@@ -1930,6 +2064,13 @@
     if (el.portalGenerate) el.portalGenerate.addEventListener('click', generatePortalInvite);
     if (el.portalCopy) el.portalCopy.addEventListener('click', copyPortalLink);
     if (el.portalRevoke) el.portalRevoke.addEventListener('click', revokePortalInvite);
+    // Remote access: one toggle button (start or stop) + the public link copy.
+    if (el.portalRemoteToggle) el.portalRemoteToggle.addEventListener('click', function () {
+      if (remoteBusy) return;
+      if (remoteRunning) stopRemoteAccess();
+      else startRemoteAccess();
+    });
+    if (el.portalPublicCopy) el.portalPublicCopy.addEventListener('click', copyPortalPublicLink);
 
     document.addEventListener('click', function (ev) {
       if (!el.ctxMenu.hidden && !el.ctxMenu.contains(ev.target)) closeCtxMenu();

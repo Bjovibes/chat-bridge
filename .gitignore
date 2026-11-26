@@ -4,6 +4,9 @@ build/shots/
 # dependencies
 node_modules/
 
+# binary tool, downloaded per machine (see README)
+build/tools/cloudflared.exe
+
 # packaging output
 build/release/
 build/dist/
