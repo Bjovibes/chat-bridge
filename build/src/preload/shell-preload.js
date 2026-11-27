@@ -21,7 +21,9 @@ contextBridge.exposeInMainWorld('wab', {
   },
   users: {
     list: () => ipcRenderer.invoke('users:list'),
-    add: (name) => ipcRenderer.invoke('users:add', { name })
+    add: (name) => ipcRenderer.invoke('users:add', { name }),
+    // v14.6 onboarding: the guide's profile rename.
+    update: (id, name) => ipcRenderer.invoke('users:update', { id, name })
   },
   privacy: {
     get: (accountId) => ipcRenderer.invoke('privacy:get', { accountId }),
@@ -51,6 +53,11 @@ contextBridge.exposeInMainWorld('wab', {
   brain: {
     get: () => ipcRenderer.invoke('brain:get'),
     set: (brain) => ipcRenderer.invoke('brain:set', { brain })
+  },
+  // v14.6: first-run guide state + the never-repeat flag.
+  onboarding: {
+    state: () => ipcRenderer.invoke('onboarding:state'),
+    setDone: () => ipcRenderer.invoke('onboarding:set', { onboarded: true })
   },
   chats: {
     listPeople: () => ipcRenderer.invoke('chats:listPeople'),

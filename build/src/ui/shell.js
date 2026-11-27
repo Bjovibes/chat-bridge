@@ -988,6 +988,8 @@
     if (status === 'logged-out') assignments.delete(accountId);
     renderAll();
     fireLayoutChange();
+    // v14.6: status pushes (linking to linked) are a guide refresh event.
+    try { if (window.WABOnboarding) window.WABOnboarding.refresh(); } catch (eWob) { /* guide never breaks the rail */ }
   }
 
   /* ---------- add account modal ---------- */
@@ -1824,6 +1826,8 @@
     // Invite truth just changed (settings open, account switch, generate or
     // revoke): the Privacy block handover follows the same fresh status.
     updatePrivacyHandover(privacyAccountId(), st);
+    // v14.6: portal status renders are a first-run guide refresh event.
+    try { if (window.WABOnboarding) window.WABOnboarding.refresh(); } catch (eWob) { /* guide never breaks settings */ }
   }
 
   function loadPortal() {

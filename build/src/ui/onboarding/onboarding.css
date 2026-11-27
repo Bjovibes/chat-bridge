@@ -1,0 +1,186 @@
+/* Chat Bridge onboarding.css, v14.6. Dark glass, matches people.css tokens.
+   The first-run guide card people.js mounts in the empty people rail:
+   title, four chronological steps, one action each, and a quiet skip link.
+
+   Step marks: done carries the accent check, the current step is
+   highlighted (accent number chip, raised surface), later steps sit muted.
+   The card hides wherever the people-note cards hide (icon rail, folded
+   rail) so the guide never breaks those modes. Self-contained: own
+   prefixed vars, load order independent. */
+
+:root {
+  --wob-accent: #2DD4BF;
+  --wob-on-accent: #0d2a26;
+  --wob-text: #F4F5F2;
+  --wob-text-2: rgba(244, 245, 242, 0.74);
+  --wob-text-3: rgba(244, 245, 242, 0.46);
+  --wob-hairline: rgba(255, 255, 255, 0.22);
+  --wob-hairline-strong: rgba(255, 255, 255, 0.34);
+  --wob-surface-soft: rgba(255, 255, 255, 0.07);
+  --wob-surface-hover: rgba(255, 255, 255, 0.12);
+  --wob-field: rgba(0, 0, 0, 0.30);
+  --wob-radius: 12px;
+  --wob-font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+.wob-card {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 0 0 auto;
+  padding: 12px 11px 9px;
+  border: 1px solid var(--wob-hairline);
+  border-radius: var(--wob-radius);
+  background: var(--wob-surface-soft);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  font-family: var(--wob-font);
+  color: var(--wob-text);
+}
+
+.wob-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--wob-text);
+}
+
+.wob-sub {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--wob-text-3);
+}
+
+.wob-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wob-step {
+  display: flex;
+  gap: 9px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+}
+.wob-step.is-current {
+  border-color: var(--wob-hairline-strong);
+  background: var(--wob-surface-hover);
+}
+.wob-step.is-pending { opacity: 0.6; }
+
+.wob-mark {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  border-radius: 50%;
+  border: 1px solid var(--wob-hairline);
+  color: var(--wob-text-3);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+.wob-step.is-current .wob-mark {
+  color: var(--wob-on-accent);
+  background: var(--wob-accent);
+  border-color: transparent;
+}
+.wob-step.is-done .wob-mark {
+  color: var(--wob-accent);
+  border-color: var(--wob-accent);
+  background: rgba(45, 212, 191, 0.12);
+}
+
+.wob-step-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wob-step-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--wob-text-2);
+}
+.wob-step.is-current .wob-step-label { color: var(--wob-text); }
+.wob-step.is-done .wob-step-label {
+  color: var(--wob-text-3);
+  text-decoration: line-through;
+}
+
+.wob-helper {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--wob-text-3);
+}
+.wob-step.is-current .wob-helper { color: var(--wob-text-2); }
+
+.wob-action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wob-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 9px;
+  font-family: var(--wob-font);
+  font-size: 12.5px;
+  color: var(--wob-text);
+  background: var(--wob-field);
+  border: 1px solid var(--wob-hairline);
+  border-radius: 8px;
+  outline: none;
+}
+.wob-input::placeholder { color: var(--wob-text-3); }
+.wob-input:focus {
+  border-color: var(--wob-hairline-strong);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+}
+
+.wob-btn {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: var(--wob-accent);
+  color: var(--wob-on-accent);
+  font-family: var(--wob-font);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.wob-btn:hover { filter: brightness(1.07); }
+.wob-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.35);
+}
+.wob-btn[disabled] { opacity: 0.55; cursor: default; }
+
+.wob-skip {
+  align-self: flex-end;
+  padding: 2px 0;
+  border: none;
+  background: transparent;
+  color: var(--wob-text-3);
+  font-family: var(--wob-font);
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.wob-skip:hover,
+.wob-skip:focus-visible { color: var(--wob-text-2); }
+
+/* The guide hides wherever the people-note cards hide: the icon rail on
+   narrow windows and the folded avatar column. */
+@media (max-width: 1100px) {
+  .wob-card { display: none; }
+}
+body.wab-rail-folded .wob-card { display: none; }

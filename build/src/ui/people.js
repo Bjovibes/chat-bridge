@@ -614,6 +614,11 @@
         state.people = sortPeople(res);  // open people pinned, then t desc across accounts
         state.peopleLoaded = true;
         state.peopleError = false;
+        // v14.6: people load success is a first-run guide refresh event; the
+        // renderer's own list is the freshest personVisible there is.
+        try {
+          if (window.WABOnboarding) window.WABOnboarding.notePeople(state.people.length > 0);
+        } catch (eWob) { /* the guide must never break the people load */ }
         onPeopleData();
         applyPersonHighlight();          // open-person state survives the re-render
         if (state.paletteOpen && !paletteQuery()) renderPaletteRecent();
@@ -721,8 +726,19 @@
       });
   }
 
+  // v14.6: account list changes also refresh the first-run guide's steps.
+  function refreshGuide() {
+    try {
+      if (window.WABOnboarding) window.WABOnboarding.refresh();
+    } catch (eWob) { /* the guide never breaks a push */ }
+  }
+
   function renderPeopleList() {
     if (!el.list) return;
+    // v14.6, the shell's rename law: never rebuild while the guide's name
+    // input holds focus; the next event re-renders once the field commits.
+    if (document.activeElement && document.activeElement.classList &&
+        document.activeElement.classList.contains('wob-input')) return;
     el.list.textContent = '';
 
     if (!chatsOk()) {
@@ -735,13 +751,22 @@
       return;
     }
     if (state.people.length === 0) {
+      // v14.6: while the first-run guide is live it owns the empty desk,
+      // ABOVE the locked-account cards so both explain themselves together.
+      var guide = null;
+      try {
+        if (window.WABOnboarding && typeof window.WABOnboarding.card === 'function') {
+          guide = window.WABOnboarding.card();
+        }
+      } catch (eG) { guide = null; }
+      if (guide) el.list.appendChild(guide);
       var lockedEmpty = visibleLockedAccounts();
       if (lockedEmpty.length) {
         // Locked accounts explain themselves instead of a bare empty list.
         lockedEmpty.forEach(function (acc) { el.list.appendChild(lockedCard(acc)); });
-        return;
+      } else if (!guide) {
+        renderNote(el.list, 'No people yet', 'Linked accounts with visible chats appear here.');
       }
-      renderNote(el.list, 'No people yet', 'Linked accounts with visible chats appear here.');
       return;
     }
 
@@ -1711,6 +1736,9 @@
     // {slot, kind, on}; before that merge lands this simply never fires.
     window.addEventListener('wab:progress', function (ev) { onProgressEvent(ev); });
 
+    // v14.6: the first-run guide re-renders the rail when its step states move.
+    window.addEventListener('wab:onboarding-updated', function () { renderPeopleList(); });
+
     // V14 U3: rail platform-card clicks, delegated at document level (U2 owns
     // the card DOM in the rail's sender section, outside this fragment's root,
     // and re-renders it freely; delegation survives every re-render).
@@ -1748,7 +1776,7 @@
     } catch (e) { /* degrade quietly */ }
     try {
       if (window.wab.accounts && typeof window.wab.accounts.onListChanged === 'function') {
-        window.wab.accounts.onListChanged(function () { peopleRefreshDebounced(); loadLockInfo(); });
+        window.wab.accounts.onListChanged(function () { peopleRefreshDebounced(); loadLockInfo(); refreshGuide(); });
       }
     } catch (e) { /* degrade quietly */ }
     try {

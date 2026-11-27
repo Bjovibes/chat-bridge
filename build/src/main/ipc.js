@@ -130,6 +130,14 @@ function registerAll() {
 
   ipcMain.handle('users:add', (_e, { name }) => store.addUser(name));
 
+  // v14.6 onboarding: rename a user (the guide's profile step). The list
+  // push makes the rail's user card follow the new name without a restart.
+  ipcMain.handle('users:update', (_e, { id, name }) => {
+    const updated = store.renameUser(id, name);
+    if (updated) push('accounts:list-changed', {});
+    return updated;
+  });
+
   // ---------- privacy ----------
   ipcMain.handle('privacy:get', (_e, { accountId }) => store.getPrivacy(accountId));
 
@@ -186,6 +194,36 @@ function registerAll() {
       return { ok: false, error: msg };
     }
   });
+
+  // ---------- onboarding (v14.6) ----------
+  // First-run guide state, computed fresh on every call from store + the
+  // engine's people walk: nothing cached in main, the renderer asks on the
+  // events that already refresh people, accounts and the portal.
+  ipcMain.handle('onboarding:state', async () => {
+    const operator = store.getUsers()[0] || null;
+    const linked = store.listAccounts().filter(a => a && a.status === 'linked');
+    let consentGiven = false;
+    for (const acc of linked) {
+      const cfg = store.getPrivacy(acc.id);
+      if (cfg && Array.isArray(cfg.allow) && cfg.allow.length > 0) { consentGiven = true; break; }
+    }
+    let personVisible = false;
+    try {
+      const people = await sessions.engPeople();   // blindfolded, linked sessions only
+      if (Array.isArray(people) && people.length > 0) personVisible = true;
+    } catch (eP) { /* engine unreachable: the renderer's own people list still counts */ }
+    return {
+      onboarded: store.onboarded(),
+      profileNamed: !!(operator && operator.name && !store.isDefaultUserName(operator.name)),
+      accountLinked: linked.length > 0,
+      consentGiven,
+      personVisible
+    };
+  });
+
+  // Never-repeat: called once when all four steps are done or the guide is
+  // skipped; the card then never renders again on any load.
+  ipcMain.handle('onboarding:set', (_e, { onboarded }) => store.setOnboarded(onboarded === true));
 
   // ---------- ai ----------
   ipcMain.handle('ai:config:get', () => {

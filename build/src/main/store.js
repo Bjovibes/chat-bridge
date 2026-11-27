@@ -22,7 +22,8 @@ const DEFAULTS = () => ({
   sentLog: [],                   // v12.7: operator's own send history (metadata only)
   brain: { tone: '', notes: {} },// v12.7: the sidekick's persistent memory
   usage: { calls: 0, lastCallAt: null },
-  portal: { invites: {} }        // consent portal: accountId -> { token, createdAt }
+  portal: { invites: {} },       // consent portal: accountId -> { token, createdAt }
+  onboarded: false               // v14.6: first-run guide finished or skipped; the card never renders again
 });
 
 let state = DEFAULTS();
@@ -37,6 +38,7 @@ function load() {
       state.usage = Object.assign(DEFAULTS().usage, raw.usage || {});
       state.portal = Object.assign(DEFAULTS().portal, raw.portal || {});
       if (!state.portal.invites || typeof state.portal.invites !== 'object') state.portal.invites = {};
+      state.onboarded = raw.onboarded === true;   // v14.6: anything but true reads as not onboarded
     }
   } catch (e) {
     // Corrupt store: start fresh rather than die. Loud in console, app keeps working.
@@ -53,6 +55,11 @@ function load() {
 // existing accounts keep ids, partitions, privacy, status; they gain a
 // userId (the first user) and platform ('whatsapp'). Idempotent: a second
 // run changes nothing and saves nothing.
+// v14.6 onboarding: the name migrateUsers seeds a fresh install's first
+// user with. The first-run guide's profile step flips done once that name
+// is changed to something of the operator's own.
+const DEFAULT_USER_NAME = 'Owner';
+
 function makeUserId() {
   return 'u_' + Math.random().toString(16).slice(2, 10);
 }
@@ -83,6 +90,18 @@ function addUser(name) {
   const clean = String(name || '').trim().slice(0, 40) || 'User';
   const u = { id: makeUserId(), name: clean };
   state.users.push(u);
+  save();
+  return u;
+}
+
+// v14.6 onboarding: rename an existing user (the guide's profile step).
+// Same cleaning as addUser; a no-op rename saves nothing.
+function renameUser(userId, name) {
+  const u = getUser(userId);
+  if (!u) return null;
+  const clean = String(name || '').trim().slice(0, 40);
+  if (!clean || clean === u.name) return u;
+  u.name = clean;
   save();
   return u;
 }
@@ -325,13 +344,32 @@ function bumpUsage() {
   save();
 }
 
+// --- onboarding (v14.6) ---
+// The first-run guide's never-repeat flag: step states are computed in the
+// ipc layer, only this boolean persists. setOnboarded(true) is called once,
+// when all four steps are done or the guide is skipped.
+function onboarded() { return state.onboarded === true; }
+
+function setOnboarded(on) {
+  state.onboarded = on === true;
+  save();
+  return state.onboarded;
+}
+
+// True while the given name still is the seeded default, i.e. the operator
+// never personalized the profile.
+function isDefaultUserName(name) {
+  return String(name || '') === DEFAULT_USER_NAME;
+}
+
 module.exports = {
   load, save, flush, get,
   listAccounts, getAccount, upsertAccount, removeAccount,
-  getUsers, getUser, addUser,
+  getUsers, getUser, addUser, renameUser,
   getPrivacy, setPrivacy, hasPrivacy,
   getInvite, createInvite, revokeInvite, findInviteByToken,
   getPrefs, setPrefs, getPanePrefs, setPanePrefs,
   logSend, sentStats, getBrain, setBrain,
+  onboarded, setOnboarded, isDefaultUserName,
   getAIConfig, setAIConfig, bumpUsage
 };

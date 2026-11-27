@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.6.0-beta (2026-11-27)
+- **First-run guide.** A fresh desk shows "Get your first conversation live": name your profile, connect a WhatsApp, let the owner pick chats, open the conversation. Each step has its own action, flips to done as you actually do it, and the card disappears forever once your first conversation is live (or when you skip it). It never repeats.
+
 ## v0.5.0-beta (2026-11-27)
 - **New accounts link locked.** The desk sees nothing until the account owner picks contacts through the consent portal. Default none, by law and now by code. Relinking never overwrites consent.
 - **Locked looks locked.** A waiting account shows an explicit "No contacts shared yet" card with the next step, in the rail and in panes.
