@@ -104,7 +104,9 @@
     typing: new Set(),     // keys accountId + '\u0000' + norm(title) now typing
     typingUntil: {},       // same key -> expiry ms (TTL sweep)
     typingTimer: null,     // sweep interval, runs only while the set is non-empty
-    progressKinds: {}      // slot -> Set of kinds currently on ('wab:progress')
+    progressKinds: {},     // slot -> Set of kinds currently on ('wab:progress')
+    lockedAccounts: [],    // consent-first: accounts stored as allow-mode with an empty allow list
+    lockProbeSeq: 0        // guards the async lock probe against stale landings
   };
 
   var AVATAR_CACHE_MAX = 400;
@@ -615,6 +617,7 @@
         onPeopleData();
         applyPersonHighlight();          // open-person state survives the re-render
         if (state.paletteOpen && !paletteQuery()) renderPaletteRecent();
+        loadLockInfo();                  // consent-first: lock cards follow the fresh rows
         return true;
       });
   }
@@ -653,6 +656,71 @@
     container.appendChild(note);
   }
 
+  /* ---------- consent-first lock cards ---------- */
+
+  // Fail-loud law: a locked account must never look like a broken or silent
+  // empty list. The card reuses the people-note pattern (same classes, same
+  // CSS) so it reads as a first-class rail state, not an error.
+  function lockedCard(acc) {
+    var note = document.createElement('div');
+    note.className = 'people-note';
+    var m = document.createElement('span');
+    m.className = 'people-note-main';
+    m.textContent = 'No contacts shared yet';
+    note.appendChild(m);
+    var s = document.createElement('span');
+    s.className = 'people-note-sub';
+    s.textContent = (acc && acc.name ? acc.name + ': ' : '') +
+      'This account is locked until its owner picks contacts. Send them the consent invite (Settings, Privacy, Consent portal).';
+    note.appendChild(s);
+    return note;
+  }
+
+  // A locked account counts as locked ONLY while it also shows no people
+  // rows: the moment the owner picks contacts, rows appear and the card
+  // drops out on the next refresh.
+  function visibleLockedAccounts() {
+    var out = [];
+    for (var i = 0; i < state.lockedAccounts.length; i++) {
+      var acc = state.lockedAccounts[i];
+      var hasPeople = false;
+      for (var j = 0; j < state.people.length; j++) {
+        if (state.people[j] && state.people[j].accountId === acc.id) { hasPeople = true; break; }
+      }
+      if (!hasPeople) out.push(acc);
+    }
+    return out;
+  }
+
+  // Pulls the account list plus each account's privacy config and keeps
+  // state.lockedAccounts fresh. Runs after every successful people load and
+  // on accounts:list-changed, so a portal pick clears the card on the next
+  // poll without a restart.
+  function loadLockInfo() {
+    if (!wabOk() || !window.wab.accounts || typeof window.wab.accounts.list !== 'function') return;
+    if (!window.wab.privacy || typeof window.wab.privacy.get !== 'function') return;
+    var seq = ++state.lockProbeSeq;
+    wrap(function () { return window.wab.accounts.list(); }, 'Could not read the account list')
+      .then(function (list) {
+        if (seq !== state.lockProbeSeq || !Array.isArray(list)) return;
+        state.accounts = list;
+        var checks = list.map(function (acc) {
+          return wrap(function () { return window.wab.privacy.get(acc.id); }, 'Could not read privacy settings')
+            .then(function (cfg) {
+              return (cfg && cfg.mode === 'allow' && Array.isArray(cfg.allow) && cfg.allow.length === 0)
+                ? acc : null;
+            });
+        });
+        Promise.all(checks).then(function (res) {
+          if (seq !== state.lockProbeSeq) return;
+          var locked = [];
+          for (var i = 0; i < res.length; i++) if (res[i]) locked.push(res[i]);
+          state.lockedAccounts = locked;
+          renderPeopleList();
+        });
+      });
+  }
+
   function renderPeopleList() {
     if (!el.list) return;
     el.list.textContent = '';
@@ -667,6 +735,12 @@
       return;
     }
     if (state.people.length === 0) {
+      var lockedEmpty = visibleLockedAccounts();
+      if (lockedEmpty.length) {
+        // Locked accounts explain themselves instead of a bare empty list.
+        lockedEmpty.forEach(function (acc) { el.list.appendChild(lockedCard(acc)); });
+        return;
+      }
       renderNote(el.list, 'No people yet', 'Linked accounts with visible chats appear here.');
       return;
     }
@@ -686,6 +760,11 @@
     shown.forEach(function (p) {
       el.list.appendChild(buildPersonRow(p));
     });
+    if (!q) {
+      // Locked accounts sit after the rows so mixed desks stay honest too.
+      var lockedExtra = visibleLockedAccounts();
+      lockedExtra.forEach(function (acc) { el.list.appendChild(lockedCard(acc)); });
+    }
     applyPersonHighlight();
     applyRailSignals(); // Y3: typing dots + progress line survive the re-render
   }
@@ -1669,7 +1748,7 @@
     } catch (e) { /* degrade quietly */ }
     try {
       if (window.wab.accounts && typeof window.wab.accounts.onListChanged === 'function') {
-        window.wab.accounts.onListChanged(function () { peopleRefreshDebounced(); });
+        window.wab.accounts.onListChanged(function () { peopleRefreshDebounced(); loadLockInfo(); });
       }
     } catch (e) { /* degrade quietly */ }
     try {

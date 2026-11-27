@@ -13,6 +13,27 @@ let push = () => {};   // set by main.js: (channel, payload) -> webContents.send
 
 function setPush(fn) { push = fn; }
 
+// Mock-mode read for the consent auto-lock. The app entry derives the mock
+// flag from process.argv and hands it to the sessions module; argv is that
+// same source, readable here without any new export.
+function appInMockMode() {
+  return process.argv.slice(2).includes('--mock');
+}
+
+// Consent-first default: a REAL account starts locked the moment it is added
+// or relinked (mode 'allow', empty allow list), so the desk shows nothing
+// until the account's owner picks contacts through the consent portal. An
+// existing privacy config is never overwritten: a relink keeps the owner's
+// consent decisions. Mock runs are exempt so phone-free smoke stays on its
+// fixture expectations. The session's own load-time privacy inject picks
+// this config up; no extra inject call is needed here.
+function lockAccountOnLink(accountId) {
+  if (!accountId) return;
+  if (appInMockMode()) return;
+  if (store.hasPrivacy(accountId)) return;
+  store.setPrivacy(accountId, { mode: 'allow', allow: [], deny: [] });
+}
+
 function scrapeSrc() {
   return `(function(){try{return window.__wabScrapeChat?window.__wabScrapeChat():{ok:false,error:'chat reader not ready yet'};}catch(e){return {ok:false,error:'chat reader failed'};}})()`;
 }
@@ -43,6 +64,7 @@ function registerAll() {
       status: 'linking'
     };
     store.upsertAccount(account);
+    lockAccountOnLink(id);   // consent-first: nothing is visible until the owner picks
     const { createQrWindow } = require('./windows');
     const qr = createQrWindow(account);
     const rec = sessions.createSession(account, qr);
@@ -88,6 +110,7 @@ function registerAll() {
     sessions.removeSession(id);   // drops the old/dead view; partition data untouched
     const linking = Object.assign({}, acc, { status: 'linking' });
     store.upsertAccount(linking);
+    lockAccountOnLink(id);   // locks ONLY accounts that never had a privacy config
     const { createQrWindow } = require('./windows');
     const qr = createQrWindow(linking);
     const rec = sessions.createSession(linking, qr);
@@ -323,7 +346,11 @@ function registerAll() {
     sessions.engHasMoreHistory(accountId, chatId));
 
   // v12.7 media: fetch a message's media as a data URL (images, stickers, gifs).
-  ipcMain.handle('eng:media', (_e, { accountId, chatId, msgId }) => {
+  ipcMain.handle('eng:media', async (_e, { accountId, chatId, msgId }) => {
+    // Blindfold door: media for a restricted chat is refused before the engine call.
+    if (await sessions.chatRestricted(accountId, chatId, '')) {
+      return { ok: false, error: 'blindfold: this chat is restricted by the account owner' };
+    }
     return sessions.engCall(accountId,
       `(function(){try{return window.__wabEng.getMedia?window.__wabEng.getMedia(${JSON.stringify(String(chatId))},${JSON.stringify(String(msgId))}):{ok:false,error:'media not supported yet'};}catch(e){return {ok:false,error:'media call failed'};}})()`);
   });

@@ -153,6 +153,15 @@ function getPrivacy(accountId) {
     { accountId, mode: 'all', allow: [], deny: [], updatedAt: null };
 }
 
+// True when an explicit config was written for this account. The 'all'
+// default from getPrivacy is only a fallback shape for accounts that
+// predate consent-first defaults; the link-time auto-lock checks THIS so a
+// relink never overwrites consent the owner already gave.
+function hasPrivacy(accountId) {
+  const cfg = state.privacy[accountId];
+  return !!(cfg && typeof cfg === 'object' && cfg.mode);
+}
+
 function setPrivacy(accountId, config) {
   const clean = {
     accountId,
@@ -320,7 +329,7 @@ module.exports = {
   load, save, flush, get,
   listAccounts, getAccount, upsertAccount, removeAccount,
   getUsers, getUser, addUser,
-  getPrivacy, setPrivacy,
+  getPrivacy, setPrivacy, hasPrivacy,
   getInvite, createInvite, revokeInvite, findInviteByToken,
   getPrefs, setPrefs, getPanePrefs, setPanePrefs,
   logSend, sentStats, getBrain, setBrain,

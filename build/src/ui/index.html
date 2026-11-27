@@ -190,19 +190,25 @@
       <label class="field"><span class="field-label">Account</span>
         <select id="privacy-account"></select>
       </label>
-      <label class="field"><span class="field-label">Mode</span>
-        <select id="privacy-mode">
-          <option value="all">All chats</option>
-          <option value="allow">Selected chats only</option>
-          <option value="deny">Hide selected</option>
-          <option value="only">Only this contact</option>
-        </select>
-      </label>
-      <p id="privacy-hint" class="privacy-hint"></p>
-      <input id="privacy-filter" type="text" placeholder="Type a name to find the chat" autocomplete="off">
-      <div id="privacy-chats" class="privacy-chats"></div>
-      <div class="modal-actions">
-        <button id="privacy-save" class="btn-primary" type="button">Save</button>
+      <!-- Consent-first handover: while the selected account has a live portal
+           invite, the owner owns its consent through the portal link, so the
+           manual mode/chats picker hides and this note explains why. -->
+      <p id="privacy-portal-note" class="privacy-hint" hidden></p>
+      <div id="privacy-manual-block">
+        <label class="field"><span class="field-label">Mode</span>
+          <select id="privacy-mode">
+            <option value="all">All chats</option>
+            <option value="allow">Selected chats only</option>
+            <option value="deny">Hide selected</option>
+            <option value="only">Only this contact</option>
+          </select>
+        </label>
+        <p id="privacy-hint" class="privacy-hint"></p>
+        <input id="privacy-filter" type="text" placeholder="Type a name to find the chat" autocomplete="off">
+        <div id="privacy-chats" class="privacy-chats"></div>
+        <div class="modal-actions">
+          <button id="privacy-save" class="btn-primary" type="button">Save</button>
+        </div>
       </div>
     </section>
 

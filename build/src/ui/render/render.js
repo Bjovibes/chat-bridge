@@ -329,6 +329,26 @@
       typeof window.wab.app.setPanePrefs === 'function';
   }
 
+  // Consent-first pane law: an account whose owner has not picked contacts
+  // yet (mode 'allow' with an empty allow list) is LOCKED. A pane aimed at
+  // it shows the explicit locked message, never a generic error or a blank.
+  // Degrades to false (not locked) when the privacy API is missing: the
+  // data-layer blindfold stays the real boundary either way.
+  function accountLocked(acctId) {
+    if (!acctId) return Promise.resolve(false);
+    if (!wabOk() || !window.wab.privacy || typeof window.wab.privacy.get !== 'function') {
+      return Promise.resolve(false);
+    }
+    return callQuiet(function () { return window.wab.privacy.get(acctId); })
+      .then(function (cfg) {
+        return !!(cfg && cfg.mode === 'allow' && Array.isArray(cfg.allow) && cfg.allow.length === 0);
+      });
+  }
+
+  function lockedMessage() {
+    return 'This account is locked until its owner picks contacts. Send them the consent invite (Settings, Privacy, Consent portal).';
+  }
+
   // V12.6 Z2: push a spine debug event (conventions #7: fixed step names and
   // counts ONLY, never contact names, never message text). Used by the read
   // flow so the Debug panel can answer "did the renderer even ask" live.
@@ -2212,6 +2232,27 @@
       setState(slot, { state: 'error', message: 'Conversations need the latest app version. Update Chat Bridge.' });
       return;
     }
+    // Consent-first: a USER-driven load for a locked account says so
+    // explicitly instead of surfacing the blindfold's refusal shape. Silent
+    // background polls skip the check; the blindfold holds them regardless.
+    if (opts.force || opts.track) {
+      accountLocked(pane.person.accountId).then(function (locked) {
+        if (state.panes[slot] !== pane) return; // pane was replaced mid-check
+        if (locked) {
+          debugStep('engine-error', pane.person.accountId, 'read blocked (account locked)');
+          progressBegin(slot, 'load');
+          progressEnd(slot, 'load', false);
+          setState(slot, { state: 'error', message: lockedMessage() });
+          return;
+        }
+        loadMessagesFetch(slot, opts, pane);
+      });
+      return;
+    }
+    loadMessagesFetch(slot, opts, pane);
+  }
+
+  function loadMessagesFetch(slot, opts, pane) {
     if (pane.fetching && !opts.force) return;
     var seq = ++pane.loadSeq;
     pane.fetching = true;
@@ -4004,9 +4045,25 @@
   // so a failed resolve leaves a Retry that retries the RESOLVE; a miss
   // forces ONE fresh eng.people pull before giving up; and the resolved
   // open goes through openResolved, which never swallows a no-rect frame.
+  // Consent-first: before any of that, an open aimed at a LOCKED account
+  // fails loud with the locked message instead of a resolve miss.
   function openFromSpecLive(slot, spec) {
     var pane = state.panes[slot] || ensurePane(slot);
     if (pane) pane.pendingSpec = spec || {};
+    accountLocked(spec && spec.accountId).then(function (locked) {
+      if (locked) {
+        progressBegin(slot, 'load');
+        progressEnd(slot, 'load', false);
+        debugStep('engine-error', spec && spec.accountId, 'open blocked (account locked)');
+        setState(slot, { state: 'error', message: lockedMessage() });
+        toastRaw('This account is locked until its owner picks contacts.');
+        return;
+      }
+      openFromSpecLiveRun(slot, spec);
+    });
+  }
+
+  function openFromSpecLiveRun(slot, spec) {
     var person = resolveForOpen(spec);
     if (person && person.chatId) {
       openResolved(slot, person, { focus: true });

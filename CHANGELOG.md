@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.0-beta (2026-11-27)
+- **New accounts link locked.** The desk sees nothing until the account owner picks contacts through the consent portal. Default none, by law and now by code. Relinking never overwrites consent.
+- **Locked looks locked.** A waiting account shows an explicit "No contacts shared yet" card with the next step, in the rail and in panes.
+- **Picker handover.** While a portal invite owns an account, the operator's manual privacy picker hides itself. Revoke the invite to take manual setup back.
+- **Full spine blindfold coverage.** History, has-more, media, and every open path now refuse restricted chats loudly. Typing indicators and AI context never name restricted chats.
+
 ## v0.4.0-beta (2026-11-26)
 - **Remote access**: partners in another country can now open the consent portal. Settings > Consent portal > Remote access starts a free Cloudflare quick tunnel and shows the public invite link. Works while the desk runs; the URL changes on restart. Requires cloudflared.exe in build/tools (see README).
 - **Remote linking made plain**: the link window is bigger and prints the WhatsApp phone-code path (Linked devices > Link a device > Link with phone number instead). The partner reads the code on a call; the operator types it. No QR scanning across distance.

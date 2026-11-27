@@ -442,6 +442,12 @@ async function engHistory(accountId, chatId, pages) {
     const msgs = (fx.messages && fx.messages[chatId]) || [];
     return { ok: true, messages: msgs, grewBy: 0, hasMore: false };
   }
+  // Blindfold door: paging older history is a read like any other, so the
+  // restricted chat gets the same loud refusal engMessages gives. Never a
+  // quiet "no more history", which would pass for a normal short thread.
+  if (await chatRestricted(accountId, chatId, '')) {
+    return { ok: false, error: 'blindfold: this chat is restricted by the account owner' };
+  }
   const res = await engCall(accountId,
     `(function(){try{return window.__wabEng.getMessagesHistory(${JSON.stringify(String(chatId))}, ${cap});}catch(e){return {ok:false,error:'history read failed'};}})()`);
   return res || { ok: false, error: 'history returned nothing' };
@@ -449,6 +455,11 @@ async function engHistory(accountId, chatId, pages) {
 
 async function engHasMoreHistory(accountId, chatId) {
   if (flags.mock) return { ok: true, hasMore: false };
+  // Blindfold door: even the "is there more" probe must not answer for a
+  // chat the blindfold hides; it fails the same loud way as the read above.
+  if (await chatRestricted(accountId, chatId, '')) {
+    return { ok: false, error: 'blindfold: this chat is restricted by the account owner' };
+  }
   const res = await engCall(accountId,
     `(function(){try{return window.__wabEng.hasMoreHistory(${JSON.stringify(String(chatId))});}catch(e){return {ok:false};}})()`);
   return res || { ok: false, hasMore: false };
@@ -625,6 +636,12 @@ async function resolveChatTitle(accountId, chatId) {
 // box, type with real keystrokes, poll the result row, real-click it. Never sends.
 let searchOpenFlight = new Set();
 async function engRealSearchOpen(accountId, chatId, title) {
+  // Blindfold door: refuse before the search box is ever focused, clicked
+  // or typed into. Defense in depth; engRealOpen guards the same law first.
+  if (await chatRestricted(accountId, chatId, title)) {
+    debugEvent('open-step', accountId, 'search open refused by the blindfold (restricted chat)');
+    return { ok: false, error: 'blindfold: this chat is restricted by the account owner' };
+  }
   if (searchOpenFlight.has(accountId)) return { ok: false, error: 'search open already in flight' };
   searchOpenFlight.add(accountId);
   const release = () => searchOpenFlight.delete(accountId);
@@ -778,6 +795,13 @@ async function engRealSearchOpen(accountId, chatId, title) {
 async function engRealOpen(accountId, chatId, title) {
   const rec = sessions.get(accountId);
   if (!rec || rec.view.webContents.isDestroyed()) return { ok: false, error: 'no live engine' };
+  // Blindfold door: no real click, wheel or keystroke may ever land on a
+  // chat the blindfold hides. Checked before the roster read, the scroll
+  // hunt, the row click and the search-typing fallback.
+  if (await chatRestricted(accountId, chatId, title)) {
+    debugEvent('open-step', accountId, 'open refused by the blindfold (restricted chat)');
+    return { ok: false, error: 'blindfold: this chat is restricted by the account owner' };
+  }
   const wc = rec.view.webContents;
   // v13 K1: the row match is TITLE-first (live rows carry no data-id on the
   // elements the query walks). Callers that know the title pass it; when none
@@ -904,10 +928,17 @@ async function engRealOpen(accountId, chatId, title) {
 // v12.4 speed law: the engine pre-opens a conversation when it is VIEWED, so by
 // the time the operator presses Send the engine is already sitting on the chat.
 const preOpened = new Map();   // accountId -> chatId (spine's belief; engine verifies)
-function engPreOpen(accountId, chatId, title) {
-  if (flags.mock) return Promise.resolve({ ok: true, echo: true });
+async function engPreOpen(accountId, chatId, title) {
+  if (flags.mock) return { ok: true, echo: true };
+  // Blindfold door: checked before the preOpened short-circuit, so a chat
+  // that got restricted after it was opened never answers "preopened" and
+  // the engine is never driven onto it again.
+  if (await chatRestricted(accountId, chatId, title)) {
+    debugEvent('open-step', accountId, 'pre-open refused by the blindfold (restricted chat)');
+    return { ok: false, error: 'blindfold: this chat is restricted by the account owner' };
+  }
   if (preOpened.get(accountId) === chatId) {
-    return Promise.resolve({ ok: true, preopened: true });
+    return { ok: true, preopened: true };
   }
   debugEvent('open-step', accountId, 'pre-opening chat on view');
   // v14 T3: Telegram opens through the adapter (T2 owns that DOM). The
@@ -1255,7 +1286,12 @@ function startTypingPoll() {
       try {
         const res = await rec.view.webContents.executeJavaScript(
           `(function(){try{return window.__wabEng&&window.__wabEng.getTyping?window.__wabEng.getTyping():[];}catch(e){return [];}})()`, false);
-        if (Array.isArray(res)) pushHandler('eng:on-typing', { accountId, titles: res.slice(0, 20) });
+        if (Array.isArray(res)) {
+          // Blindfold: typing titles ARE chat names, and restricted chats are
+          // not public in the people list, so only allowed titles push.
+          const allowedTitles = res.filter(t => chatAllowed(accountId, t)).slice(0, 20);
+          pushHandler('eng:on-typing', { accountId, titles: allowedTitles });
+        }
       } catch (e) { /* mid-navigation */ }
     }
   }, 2000);
@@ -1431,6 +1467,13 @@ async function openChat(accountId, title) {
   const rec = sessions.get(accountId);
   if (!rec || rec.view.webContents.isDestroyed()) return { ok: false, error: 'that account has no live session' };
   if (!OPENCHAT_SRC) return { ok: false, error: 'chat opener not installed yet (v2 inject missing)' };
+  // Blindfold door: this route names the chat by TITLE, so the caller's
+  // title is the law (there is no chat id for the roster to resolve).
+  // Refused before the opener is installed or run: no click, no pane.
+  if (await chatRestricted(accountId, '', title)) {
+    debugEvent('open-step', accountId, 'open refused by the blindfold (restricted chat)');
+    return { ok: false, error: 'blindfold: this chat is restricted by the account owner' };
+  }
   try {
     await rec.view.webContents.executeJavaScript(OPENCHAT_SRC, false);   // idempotent installer
     const res = await rec.view.webContents.executeJavaScript(
@@ -1592,6 +1635,11 @@ function openAIPanel(accountId, command) {
   runInPage(accountId, `(function(){try{return window.__wabScrapeChat?window.__wabScrapeChat():null;}catch(e){return null;}})()`)
     .then(scrape => {
       if (scrape && scrape.ok && shellWin && !shellWin.isDestroyed()) {
+        // Blindfold: the context line must never name a restricted chat,
+        // even when the engine still sits on one from an earlier open or a
+        // restored session. The panel opens; the chat name stays unsent.
+        const rawName = String((scrape && scrape.contactName) || '');
+        if (rawName && !chatAllowed(accountId, rawName)) return;
         uiWC(shellWin).executeJavaScript(
           `(function(){try{if(window.WABAiPanel){window.WABAiPanel.setContext(${JSON.stringify({
             accountId, chatName: scrape.contactName || 'this chat', accountName: acc ? acc.name : ''
@@ -1652,6 +1700,7 @@ module.exports = {
   setFlags, setShellWindow, setUiView, setPushHandler, startPolling, startRelayoutLoop,
   setLayout, attachToSlot, detach, relayout, fitEngines, setOverlayVisible, isShown,
   injectPrivacy, runInPage, openAIPanel, accountUrl, partitionFor,
+  chatRestricted, chatAllowed,
   setActivePane, setPanePerson, openChat, collectPeople, pushAllPaneStates,
   engPeople, engMessages, engSend, engHealth, engPreOpen, engRealOpen, engCall, startTypingPoll, timerReport,
   engHistory, engHasMoreHistory, startWatchdog,

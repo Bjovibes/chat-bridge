@@ -109,6 +109,7 @@
     aiTest: null, aiSave: null, aiTestResult: null,
     privacyAccount: null, privacyMode: null, privacyChats: null,
     privacyHint: null, privacySave: null,
+    privacyManualBlock: null, privacyPortalNote: null,
     settingsAddAccount: null,
     portalAccount: null, portalLink: null, portalLinkBlock: null,
     portalCopy: null, portalRevoke: null, portalGenerate: null, portalNote: null,
@@ -223,6 +224,8 @@
     el.privacyHint = $('privacy-hint');
     el.privacyFilter = $('privacy-filter');
     el.privacySave = $('privacy-save');
+    el.privacyManualBlock = $('privacy-manual-block');
+    el.privacyPortalNote = $('privacy-portal-note');
     el.settingsAddAccount = $('settings-add-account');
     // Consent portal block (mirrors the privacy refs).
     el.portalAccount = $('portal-account');
@@ -1563,6 +1566,7 @@
       el.privacyChats.textContent = '';
       el.privacyMode.value = 'all';
       updatePrivacyHint();
+      updatePrivacyHandover(null);
       return;
     }
 
@@ -1601,6 +1605,38 @@
         privacyChatsLoaded = true;
         renderPrivacyChats(privacyChatsCache);
       });
+
+    updatePrivacyHandover(accId);
+  }
+
+  // Consent-first handover: while the selected account HAS a live portal
+  // invite, its owner owns consent through the portal link. The manual
+  // mode/chats picker hides and the note says how to take it back (revoke
+  // the invite in the Consent portal block below). Without an invite the
+  // manual picker stays: operator-owned accounts keep local setup. st is
+  // optional: callers that already hold a fresh portal status pass it, the
+  // privacy-account path fetches its own.
+  function updatePrivacyHandover(accId, st) {
+    if (!el.privacyManualBlock || !el.privacyPortalNote) return;
+    if (!accId) {
+      el.privacyManualBlock.hidden = false;
+      el.privacyPortalNote.hidden = true;
+      el.privacyPortalNote.textContent = '';
+      return;
+    }
+    var apply = function (status) {
+      if (privacyAccountId() !== accId) return; // the select moved on; stale
+      var inv = status && status.invites && status.invites[accId];
+      el.privacyManualBlock.hidden = !!inv;
+      el.privacyPortalNote.hidden = !inv;
+      el.privacyPortalNote.textContent = inv
+        ? 'Consent for this account is owned by its owner through the portal link. Revoke the invite to take manual setup back.'
+        : '';
+    };
+    if (st) { apply(st); return; }
+    if (!wabOk() || !window.wab.portal || typeof window.wab.portal.status !== 'function') return;
+    call(function () { return window.wab.portal.status(); }, 'Could not load the consent portal')
+      .then(function (fresh) { apply(fresh); });
   }
 
   // Mode switch keeps the loaded chat list, drops in-progress picks.
@@ -1785,6 +1821,9 @@
     el.portalGenerate.hidden = !accId || !!inv;
     el.portalRevoke.hidden = !inv;
     renderPortalRemote(st);
+    // Invite truth just changed (settings open, account switch, generate or
+    // revoke): the Privacy block handover follows the same fresh status.
+    updatePrivacyHandover(privacyAccountId(), st);
   }
 
   function loadPortal() {
